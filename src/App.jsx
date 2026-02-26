@@ -53,3 +53,6 @@ function App() {
       return parseFloat(ethers.formatEther(estimatedGas * gasPrice));
     } catch {
       return 0.001;
+}
+
+export default App;
