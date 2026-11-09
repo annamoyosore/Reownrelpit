@@ -20,7 +20,7 @@ if (!projectId) {
   throw new Error("Reown Project ID is missing");
 }
 
-// Six EVM mainnets
+// Supported EVM networks
 export const evmNetworks = [
   mainnet,
   polygon,
@@ -30,25 +30,26 @@ export const evmNetworks = [
   base
 ];
 
-// Solana mainnet
+// Supported Solana network
 export const solanaNetworks = [solana];
 
-// All supported networks
+// Combined network list
 export const networks = [
   ...evmNetworks,
   ...solanaNetworks
 ];
 
+// EVM adapter
 export const wagmiAdapter = new WagmiAdapter({
   projectId,
   networks: evmNetworks,
   ssr: false
 });
 
-export const solanaAdapter = new SolanaAdapter({
-  networks: solanaNetworks
-});
+// Solana adapter
+export const solanaAdapter = new SolanaAdapter({});
 
+// Initialise AppKit
 export const appKit = createAppKit({
   projectId,
   adapters: [
@@ -56,6 +57,7 @@ export const appKit = createAppKit({
     solanaAdapter
   ],
   networks,
+  defaultNetwork: mainnet,
   metadata: {
     name: "Multichain Wallet",
     description: "Multi-chain crypto wallet dashboard",
