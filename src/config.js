@@ -1,27 +1,64 @@
 import { createAppKit } from "@reown/appkit/react";
 import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
 import { SolanaAdapter } from "@reown/appkit-adapter-solana";
-import { mainnet, sepolia, solanaDevnet } from "@reown/appkit/networks";
 
-export const projectId = import.meta.env.VITE_APPKIT_PROJECT_ID || import.meta.env.VITE_PROJECT_ID || "c00145b1e7f8d39d821971d8aeb61276";
+import {
+  mainnet,
+  polygon,
+  bsc,
+  arbitrum,
+  optimism,
+  base,
+  solana
+} from "@reown/appkit/networks";
+
+export const projectId =
+  import.meta.env.VITE_APPKIT_PROJECT_ID ||
+  import.meta.env.VITE_PROJECT_ID;
+
+if (!projectId) {
+  throw new Error("Reown Project ID is missing");
+}
+
+// Six EVM mainnets
+export const evmNetworks = [
+  mainnet,
+  polygon,
+  bsc,
+  arbitrum,
+  optimism,
+  base
+];
+
+// Solana mainnet
+export const solanaNetworks = [solana];
+
+// All supported networks
+export const networks = [
+  ...evmNetworks,
+  ...solanaNetworks
+];
 
 export const wagmiAdapter = new WagmiAdapter({
   projectId,
-  networks: [mainnet, sepolia],
+  networks: evmNetworks,
   ssr: false
 });
 
 export const solanaAdapter = new SolanaAdapter({
-  networks: [solanaDevnet]
+  networks: solanaNetworks
 });
 
 export const appKit = createAppKit({
   projectId,
-  adapters: [wagmiAdapter, solanaAdapter],
-  networks: [mainnet, sepolia, solanaDevnet],
+  adapters: [
+    wagmiAdapter,
+    solanaAdapter
+  ],
+  networks,
   metadata: {
-    name: "Multichain DApp",
-    description: "EVM + Solana AppKit DApp",
+    name: "Multichain Wallet",
+    description: "Multi-chain crypto wallet dashboard",
     url: window.location.origin,
     icons: []
   }
