@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>MultiChain Wallet Admin</title>
+
+<script src="https://cdn.jsdelivr.net/npm/appwrite@17.0.0"></script>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0b1220;
+  color: white;
+}
+
+.container {
+  max-width: 1100px;
+  margin: auto;
+  padding: 20px;
+}
+
+.card {
+  background: #172337;
+  border: 1px solid #293b54;
+  border-radius: 14px;
+  padding: 22px;
+  margin-bottom: 18px;
+}
+
+h1, h2 {
+  margin-top: 0;
+}
+
+input {
+  width: 100%;
+  padding: 14px;
+  margin: 9px 0;
+  border-radius: 8px;
+  border: 1px solid #42516a;
+  background: #0b1220;
+  color: white;
+}
+
+button {
+  padding: 13px 18px;
+  border: 0;
+  border-radius: 8px;
+  background: #16a34a;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: .6;
+}
+
+.logout {
+  background: #dc2626;
+}
+
+.hidden {
+  display: none;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 15px;
+}
+
+.stat {
+  background: #0b1220;
+  padding: 20px;
+  border-radius: 10px;
+}
+
+.stat strong {
+  display: block;
+  font-size: 27px;
+  margin-top: 10px;
+  color: #4ade80;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 650px;
+}
+
+th, td {
+  padding: 13px;
+  border-bottom: 1px solid #293b54;
+  text-align: left;
+  font-size: 13px;
+}
+
+th {
+  color: #4ade80;
+}
+
+.status {
+  color: #4ade80;
+}
+
+#message {
+  color: #f87171;
+  margin-top: 12px;
+  font-size: 14px;
+}
+
+.small {
+  color: #9ca3af;
+  font-size: 12px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div id="loginSection" class="card">
+    <h1>MultiChain Wallet</h1>
+    <h2>Administrator Login</h2>
+
+    <p class="small">
+      Authorised administrator access only.
+    </p>
+
+    <form id="loginForm">
+      <input
+        type="email"
+        id="email"
+        placeholder="Admin email"
+        autocomplete="username"
+        required
+      >
+
+      <input
+        type="password"
+        id="password"
+        placeholder="Admin password"
+        autocomplete="current-password"
+        required
+      >
+
+      <button type="submit" id="loginButton">
+        Sign In
+      </button>
+    </form>
+
+    <div id="message"></div>
+  </div>
+
+
+  <div id="dashboard" class="hidden">
+
+    <div class="card">
+      <h1>Admin Dashboard</h1>
+
+      <p class="small">
+        Connected Wallet Monitoring
+      </p>
+
+      <button onclick="loadWallets()">
+        Refresh Wallets
+      </button>
+
+      <button class="logout" onclick="logout()">
+        Logout
+      </button>
+    </div>
+
+
+    <div class="stats">
+
+      <div class="card stat">
+        Total Wallets
+        <strong id="totalWallets">0</strong>
+      </div>
+
+      <div class="card stat">
+        Connected
+        <strong id="connectedWallets">0</strong>
+      </div>
+
+      <div class="card stat">
+        Networks
+        <strong id="totalNetworks">0</strong>
+      </div>
+
+    </div>
+
+
+    <div class="card">
+
+      <h2>Connected Wallets</h2>
+
+      <input
+        type="text"
+        id="search"
+        placeholder="Search wallet address or network..."
+        oninput="filterWallets()"
+      >
+
+      <div class="table-wrap">
+
+        <table>
+          <thead>
+            <tr>
+              <th>Wallet Address</th>
+              <th>Network</th>
+              <th>Chain ID</th>
+              <th>Status</th>
+              <th>Connected At</th>
+              <th>Last Seen</th>
+            </tr>
+          </thead>
+
+          <tbody id="walletTable">
+            <tr>
+              <td colspan="6">No wallet records loaded.</td>
+            </tr>
+          </tbody>
+
+        </table>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<script>
+const ENDPOINT = "https://nyc.cloud.appwrite.io/v1";
+
+const PROJECT_ID = "69d1aaac0005506756e0";
+
+const client = new Appwrite.Client()
+  .setEndpoint(ENDPOINT)
+  .setProject(PROJECT_ID);
+
+const account = new Appwrite.Account(client);
+
+let wallets = [];
+
+
+const loginSection =
+  document.getElementById("loginSection");
+
+const dashboard =
+  document.getElementById("dashboard");
+
+const message =
+  document.getElementById("message");
+
+
+function showDashboard() {
+  loginSection.classList.add("hidden");
+  dashboard.classList.remove("hidden");
+}
+
+
+function showLogin() {
+  dashboard.classList.add("hidden");
+  loginSection.classList.remove("hidden");
+}
+
+
+async function getAdminJWT() {
+  const result = await account.createJWT();
+
+  return result.jwt;
+}
+
+
+async function checkSession() {
+  try {
+    await account.get();
+
+    const jwt = await getAdminJWT();
+
+    const response = await fetch("/api/admin-wallets", {
+      headers: {
+        Authorization: "Bearer " + jwt
+      }
+    });
+
+    if (response.ok) {
+      showDashboard();
+      await loadWallets();
+    }
+
+  } catch (error) {
+    showLogin();
+  }
+}
+
+
+document.getElementById("loginForm")
+.addEventListener("submit", async function(e) {
+
+  e.preventDefault();
+
+  message.textContent = "";
+
+  const button =
+    document.getElementById("loginButton");
+
+  button.disabled = true;
+  button.textContent = "Verifying...";
+
+  try {
+
+    const email =
+      document.getElementById("email").value.trim();
+
+    const password =
+      document.getElementById("password").value;
+
+    await account.createEmailPasswordSession(
+      email,
+      password
+    );
+
+    const jwt = await getAdminJWT();
+
+    const response = await fetch("/api/admin-wallets", {
+      headers: {
+        Authorization: "Bearer " + jwt
+      }
+    });
+
+    if (!response.ok) {
+      await account.deleteSession("current");
+
+      throw new Error(
+        "This account is not authorised as administrator."
+      );
+    }
+
+    showDashboard();
+
+    await loadWallets();
+
+  } catch (error) {
+
+    message.textContent =
+      error.message || "Login failed.";
+
+  } finally {
+
+    button.disabled = false;
+    button.textContent = "Sign In";
+
+  }
+
+});
+
+
+async function loadWallets() {
+
+  const tbody =
+    document.getElementById("walletTable");
+
+  tbody.innerHTML =
+    "<tr><td colspan='6'>Loading wallets...</td></tr>";
+
+  try {
+
+    const jwt = await getAdminJWT();
+
+    const response = await fetch("/api/admin-wallets", {
+      headers: {
+        Authorization: "Bearer " + jwt
+      }
+    });
+
+    if (response.status === 401 ||
+        response.status === 403) {
+
+      await logout();
+      throw new Error("Admin access expired.");
+    }
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "Unable to load wallets");
+    }
+
+    wallets = data.wallets || [];
+
+    renderWallets(wallets);
+
+    document.getElementById("totalWallets")
+      .textContent = wallets.length;
+
+    document.getElementById("connectedWallets")
+      .textContent = wallets.filter(
+        w => w.connectionStatus === "connected"
+      ).length;
+
+    const networks = new Set(
+      wallets.map(w => w.network)
+    );
+
+    document.getElementById("totalNetworks")
+      .textContent = networks.size;
+
+  } catch (error) {
+
+    tbody.innerHTML =
+      `<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;
+
+  }
+}
+
+
+function renderWallets(items) {
+
+  const tbody =
+    document.getElementById("walletTable");
+
+  if (!items.length) {
+    tbody.innerHTML =
+      "<tr><td colspan='6'>No connected wallets found.</td></tr>";
+    return;
+  }
+
+  tbody.innerHTML = items.map(wallet => `
+
+    <tr>
+
+      <td>${escapeHtml(wallet.walletAddress || "")}</td>
+
+      <td>${escapeHtml(wallet.network || "")}</td>
+
+      <td>${escapeHtml(String(wallet.chainId ?? ""))}</td>
+
+      <td class="status">
+        ${escapeHtml(wallet.connectionStatus || "")}
+      </td>
+
+      <td>
+        ${formatDate(wallet.connectedAt)}
+      </td>
+
+      <td>
+        ${formatDate(wallet.lastSeenAt)}
+      </td>
+
+    </tr>
+
+  `).join("");
+
+}
+
+
+function filterWallets() {
+
+  const query =
+    document.getElementById("search")
+      .value.toLowerCase();
+
+  const filtered = wallets.filter(wallet => {
+
+    return (
+      (wallet.walletAddress || "")
+        .toLowerCase().includes(query) ||
+
+      (wallet.network || "")
+        .toLowerCase().includes(query)
+    );
+
+  });
+
+  renderWallets(filtered);
+
+}
+
+
+function formatDate(value) {
+
+  if (!value) return "-";
+
+  const date = new Date(value);
+
+  if (isNaN(date.getTime())) return "-";
+
+  return date.toLocaleString();
+
+}
+
+
+function escapeHtml(value) {
+
+  return String(value).replace(/[&<>"']/g, char => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[char]);
+
+}
+
+
+async function logout() {
+
+  try {
+    await account.deleteSession("current");
+  } catch (error) {}
+
+  wallets = [];
+
+  showLogin();
+
+}
+
+
+checkSession();
+
+</script>
+
+</body>
+</html>
