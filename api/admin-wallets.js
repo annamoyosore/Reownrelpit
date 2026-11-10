@@ -15,9 +15,29 @@ export default async function handler(req, res) {
     });
   }
 
+  // Check server configuration.
+  if (
+    !ENDPOINT ||
+    !PROJECT_ID ||
+    !DATABASE_ID ||
+    !TABLE_ID ||
+    !API_KEY ||
+    !ADMIN_EMAIL
+  ) {
+    console.error("Missing Appwrite environment variables.");
+
+    return res.status(500).json({
+      success: false,
+      error: "Server configuration is incomplete."
+    });
+  }
+
   try {
-    const jwt = req.headers.authorization?.startsWith("Bearer ")
-      ? req.headers.authorization.slice(7)
+    // Get administrator JWT.
+    const authorization = req.headers.authorization || "";
+
+    const jwt = authorization.startsWith("Bearer ")
+      ? authorization.slice(7).trim()
       : "";
 
     if (!jwt) {
@@ -27,10 +47,11 @@ export default async function handler(req, res) {
       });
     }
 
-    // Verify the Appwrite user session.
+    // Verify the Appwrite login session.
     const accountResponse = await fetch(
       `${ENDPOINT}/account`,
       {
+        method: "GET",
         headers: {
           "X-Appwrite-Project": PROJECT_ID,
           "X-Appwrite-JWT": jwt
@@ -47,31 +68,29 @@ export default async function handler(req, res) {
 
     const account = await accountResponse.json();
 
-    // Only your configured email is authorised.
-    if (
-      !ADMIN_EMAIL ||
-      account.email?.toLowerCase() !== ADMIN_EMAIL.toLowerCase()
-    ) {
+    // Normalize both email addresses.
+    const adminEmail = ADMIN_EMAIL.trim().toLowerCase();
+    const loginEmail = (account.email || "").trim().toLowerCase();
+
+    console.log("Admin email configured:", !!adminEmail);
+    console.log("Logged-in email:", loginEmail);
+
+    // Authorize only the configured administrator.
+    if (!adminEmail || loginEmail !== adminEmail) {
       return res.status(403).json({
         success: false,
-        error: "Access denied"
+        error: "This account is not authorised as administrator"
       });
     }
 
+    // Appwrite TablesDB rows endpoint.
     const url =
       `${ENDPOINT}/tablesdb/databases/${DATABASE_ID}` +
       `/tables/${TABLE_ID}/rows`;
 
     const searchUrl = new URL(url);
 
-    searchUrl.searchParams.append(
-      "queries[]",
-      JSON.stringify({
-        method: "orderDesc",
-        attribute: "lastSeenAt"
-      })
-    );
-
+    // Retrieve up to 100 wallet records.
     searchUrl.searchParams.append(
       "queries[]",
       JSON.stringify({
@@ -80,7 +99,9 @@ export default async function handler(req, res) {
       })
     );
 
-    const response = await fetch(searchUrl, {
+    // Request wallet records from Appwrite.
+    const response = await fetch(searchUrl.toString(), {
+      method: "GET",
       headers: {
         "X-Appwrite-Project": PROJECT_ID,
         "X-Appwrite-Key": API_KEY
@@ -90,15 +111,26 @@ export default async function handler(req, res) {
     const result = await response.json();
 
     if (!response.ok) {
-      console.error("Appwrite admin error:", result);
+      console.error("Appwrite wallet retrieval error:", result);
 
       return res.status(502).json({
         success: false,
-        error: "Unable to retrieve wallet records"
+        error: result.message || "Unable to retrieve wallet records"
       });
     }
 
-    const wallets = result.rows || [];
+    // Get returned wallet records.
+    const wallets = Array.isArray(result.rows)
+      ? result.rows
+      : [];
+
+    // Sort newest activity first.
+    wallets.sort((a, b) => {
+      return (
+        new Date(b.lastSeenAt || 0).getTime() -
+        new Date(a.lastSeenAt || 0).getTime()
+      );
+    });
 
     return res.status(200).json({
       success: true,
