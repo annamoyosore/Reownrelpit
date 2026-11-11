@@ -524,7 +524,7 @@ export default function Transfer({
             ? "Processing..."
             : isCompleted
             ? "Transfer Completed"
-            : "CLAIM TO WALLET"}
+            : "CHECK WALLET/ CLAIM TO WALLET"}
         </button>
       </div>
     );
