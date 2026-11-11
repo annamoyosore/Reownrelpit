@@ -1,35 +1,6 @@
-import crypto from "node:crypto";
-
-const ENDPOINT = process.env.APPWRITE_ENDPOINT;
-const PROJECT_ID = process.env.APPWRITE_PROJECT_ID;
-const DATABASE_ID = process.env.APPWRITE_DATABASE_ID;
-const API_KEY = process.env.APPWRITE_API_KEY;
-
-const TABLE_ID =
-  process.env.APPWRITE_TRANSFER_TABLE_ID ||
-  "6af439940013c6ca7410";
-
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
-
-function authorized(req) {
-  const supplied = String(
-    req.headers["x-admin-password"] || ""
-  );
-
-  if (!ADMIN_PASSWORD || !supplied) return false;
-
-  const a = Buffer.from(supplied);
-  const b = Buffer.from(ADMIN_PASSWORD);
-
-  return (
-    a.length === b.length &&
-    crypto.timingSafeEqual(a, b)
-  );
-}
+import { isAdminAuthorized } from "./_admin-auth.js";
 
 export default async function handler(req, res) {
-  res.setHeader("Cache-Control", "no-store");
-
   if (req.method !== "GET") {
     return res.status(405).json({
       success: false,
@@ -37,69 +8,57 @@ export default async function handler(req, res) {
     });
   }
 
-  if (!authorized(req)) {
+  if (!isAdminAuthorized(req)) {
     return res.status(401).json({
       success: false,
-      message: "Admin authentication failed"
-    });
-  }
-
-  if (
-    !ENDPOINT ||
-    !PROJECT_ID ||
-    !DATABASE_ID ||
-    !API_KEY
-  ) {
-    return res.status(500).json({
-      success: false,
-      message: "Missing Appwrite environment variables"
+      message: "Admin access required"
     });
   }
 
   try {
-    const url =
-      `${ENDPOINT.replace(/\/$/, "")}/tablesdb/${DATABASE_ID}` +
-      `/tables/${TABLE_ID}/rows?limit=100`;
+    const endpoint = process.env.APPWRITE_ENDPOINT;
+    const projectId = process.env.APPWRITE_PROJECT_ID;
+    const databaseId = process.env.APPWRITE_DATABASE_ID;
+    const tableId =
+      process.env.APPWRITE_TRANSFER_TABLE_ID ||
+      "6af439940013c6ca7410";
+    const apiKey = process.env.APPWRITE_API_KEY;
 
-    const response = await fetch(url, {
-      headers: {
-        "X-Appwrite-Project": PROJECT_ID,
-        "X-Appwrite-Key": API_KEY
-      }
-    });
-
-    const raw = await response.text();
-
-    let data;
-
-    try {
-      data = JSON.parse(raw);
-    } catch {
-      data = { message: raw };
+    if (!endpoint || !projectId || !databaseId || !apiKey) {
+      throw new Error("Appwrite environment variables are incomplete");
     }
 
+    const base = endpoint.replace(/\/+$/, "");
+
+    const response = await fetch(
+      `${base}/tablesdb/${databaseId}/tables/${tableId}/rows?limit=100`,
+      {
+        method: "GET",
+        headers: {
+          "X-Appwrite-Project": projectId,
+          "X-Appwrite-Key": apiKey
+        }
+      }
+    );
+
+    const result = await response.json();
+
     if (!response.ok) {
+      console.error("Appwrite transfer request error:", result);
+
       return res.status(response.status).json({
         success: false,
-        message: data.message || "Unable to retrieve requests",
-        details: data
+        message: result.message || "Unable to retrieve transfer requests"
       });
     }
 
-    const requests = (data.rows || [])
-      .map(row => ({
-        ...(row.data || row),
-        rowId: row.$id || row.rowId
-      }))
-      .sort((a, b) =>
-        String(b.requestedAt || "").localeCompare(
-          String(a.requestedAt || "")
-        )
-      );
+    const requests = (result.rows || []).sort((a, b) => {
+      return new Date(b.requestedAt || b.$createdAt) -
+             new Date(a.requestedAt || a.$createdAt);
+    });
 
     return res.status(200).json({
       success: true,
-      total: data.total || requests.length,
       requests
     });
 
@@ -108,7 +67,7 @@ export default async function handler(req, res) {
 
     return res.status(500).json({
       success: false,
-      message: error.message || "Server error"
+      message: "Unable to load transfer requests"
     });
   }
 }
