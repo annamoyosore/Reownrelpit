@@ -117,7 +117,7 @@ th {
   color: #9ca3af;
   font-size: 12px;
 }
-</style></head><body><div class="container">  <!-- PASSWORD LOGIN -->  <div id="loginSection" class="card"><h1>MultiChain Wallet</h1>
+</style></head><body><div class="container">  <!-- ADMIN PASSWORD LOGIN -->  <div id="loginSection" class="card"><h1>MultiChain Wallet</h1>
 
 <h2>Administrator Access</h2>
 
@@ -230,7 +230,8 @@ th {
 
   </div></div><script>
 
-// API ENDPOINT
+// EXISTING WALLET RETRIEVAL API
+// Used ONLY to retrieve wallet records.
 
 const API_URL = "/api/admin-wallets";
 
@@ -239,19 +240,23 @@ let wallets = [];
 let adminUnlocked = false;
 
 
-// ENCODED PASSWORD
+// ENCODED ADMIN PASSWORD
 
 const encodedPassword = "YWFhYWFh";
 
 
-// VERIFY PASSWORD
+// PASSWORD VERIFICATION
 
 function verifyPassword(input) {
 
   try {
+
     return btoa(input) === encodedPassword;
+
   } catch (error) {
+
     return false;
+
   }
 
 }
@@ -315,7 +320,9 @@ document.getElementById("loginForm")
 
     if (!verifyPassword(password)) {
 
-      throw new Error("Incorrect administrator password.");
+      throw new Error(
+        "Incorrect administrator password."
+      );
 
     }
 
@@ -346,6 +353,7 @@ document.getElementById("loginForm")
 
 
 // LOAD WALLETS
+// This is the ONLY section using the Vercel API.
 
 async function loadWallets() {
 
@@ -415,7 +423,7 @@ function updateDashboard() {
 }
 
 
-// RENDER WALLETS
+// RENDER WALLET TABLE
 
 function renderWallets(items) {
 
@@ -435,19 +443,29 @@ function renderWallets(items) {
 
     <tr>
 
-      <td>${escapeHtml(wallet.walletAddress || "")}</td>
+      <td>
+        ${escapeHtml(wallet.walletAddress || "")}
+      </td>
 
-      <td>${escapeHtml(wallet.network || "")}</td>
+      <td>
+        ${escapeHtml(wallet.network || "")}
+      </td>
 
-      <td>${escapeHtml(String(wallet.chainId ?? ""))}</td>
+      <td>
+        ${escapeHtml(String(wallet.chainId ?? ""))}
+      </td>
 
       <td class="status">
         ${escapeHtml(wallet.connectionStatus || "")}
       </td>
 
-      <td>${formatDate(wallet.connectedAt)}</td>
+      <td>
+        ${formatDate(wallet.connectedAt)}
+      </td>
 
-      <td>${formatDate(wallet.lastSeenAt)}</td>
+      <td>
+        ${formatDate(wallet.lastSeenAt)}
+      </td>
 
     </tr>
 
@@ -469,12 +487,14 @@ function filterWallets() {
     return (
 
       (wallet.walletAddress || "")
-        .toLowerCase().includes(query)
+        .toLowerCase()
+        .includes(query)
 
       ||
 
       (wallet.network || "")
-        .toLowerCase().includes(query)
+        .toLowerCase()
+        .includes(query)
 
     );
 
@@ -544,6 +564,8 @@ function logout() {
 
 }
 
+
+// INITIAL STATE
 
 showLogin();
 
