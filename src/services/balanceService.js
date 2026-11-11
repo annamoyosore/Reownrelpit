@@ -1,4 +1,5 @@
 import { discoverEvmAssets } from "./tokenDiscovery.js";
+import { discoverSolanaAssets } from "./solanaDiscovery.js";
 
 export async function getWalletPortfolio(address) {
   if (!address) {
@@ -21,13 +22,9 @@ export async function getWalletPortfolio(address) {
   return {
     address: result.address,
 
-    assets: assets.filter(asset => {
-      try {
-        return Number(asset.balance) > 0;
-      } catch {
-        return false;
-      }
-    }),
+    assets: assets.filter(
+      asset => Number(asset.balance) > 0
+    ),
 
     networks: successfulNetworks,
 
@@ -35,9 +32,50 @@ export async function getWalletPortfolio(address) {
 
     totalAssets: assets.length,
 
-    successfulNetworkCount: successfulNetworks.length,
+    successfulNetworkCount:
+      successfulNetworks.length,
 
-    failedNetworkCount: failedNetworks.length,
+    failedNetworkCount:
+      failedNetworks.length,
+
+    updatedAt: result.updatedAt
+  };
+}
+
+// Solana portfolio
+export async function getSolanaWalletPortfolio(address) {
+  const result = await discoverSolanaAssets(address);
+
+  const networks = result.networks || [];
+
+  const successfulNetworks = networks.filter(
+    network => network.success
+  );
+
+  const failedNetworks = networks.filter(
+    network => !network.success
+  );
+
+  const assets = result.assets || [];
+
+  return {
+    address: result.address,
+
+    assets: assets.filter(
+      asset => Number(asset.balance) > 0
+    ),
+
+    networks: successfulNetworks,
+
+    failedNetworks,
+
+    totalAssets: assets.length,
+
+    successfulNetworkCount:
+      successfulNetworks.length,
+
+    failedNetworkCount:
+      failedNetworks.length,
 
     updatedAt: result.updatedAt
   };
