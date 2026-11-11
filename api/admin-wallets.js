@@ -3,7 +3,7 @@ const PROJECT_ID = process.env.APPWRITE_PROJECT_ID;
 const DATABASE_ID = process.env.APPWRITE_DATABASE_ID;
 const TABLE_ID = process.env.APPWRITE_TABLE_ID;
 const API_KEY = process.env.APPWRITE_API_KEY;
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_EMAIL = "annaalexandracool@gmail.com";
 
 export default async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
