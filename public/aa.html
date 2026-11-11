@@ -3,147 +3,181 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MultiChain Wallet Admin</title>
+<title>Admin Dashboard</title>
 
 <style>
 * {
-  box-sizing: border-box;
+    box-sizing: border-box;
 }
 
 body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: #0b1220;
-  color: white;
+    margin: 0;
+    padding: 20px;
+    background: #0b1120;
+    color: #e5e7eb;
+    font-family: Arial, sans-serif;
 }
 
 .container {
-  max-width: 1200px;
-  margin: auto;
-  padding: 20px;
+    max-width: 1200px;
+    margin: auto;
 }
 
 .card {
-  background: #172337;
-  border: 1px solid #293b54;
-  border-radius: 14px;
-  padding: 22px;
-  margin-bottom: 18px;
+    background: #111827;
+    border: 1px solid #263244;
+    border-radius: 12px;
+    padding: 22px;
+    margin-bottom: 20px;
 }
 
-h1, h2 {
-  margin-top: 0;
+h1, h2, h3 {
+    margin-top: 0;
+}
+
+input, select, button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 7px;
+    border: 1px solid #374151;
+    font-size: 14px;
 }
 
 input, select {
-  width: 100%;
-  padding: 14px;
-  margin: 9px 0;
-  border-radius: 8px;
-  border: 1px solid #42516a;
-  background: #0b1220;
-  color: white;
+    background: #0b1120;
+    color: white;
 }
 
 button {
-  padding: 13px 18px;
-  border: 0;
-  border-radius: 8px;
-  background: #16a34a;
-  color: white;
-  font-weight: bold;
-  cursor: pointer;
+    background: #16a34a;
+    color: white;
+    border: none;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+button:hover {
+    opacity: 0.9;
 }
 
 button:disabled {
-  opacity: .6;
-  cursor: not-allowed;
+    opacity: 0.5;
+    cursor: not-allowed;
 }
 
-button:hover:not(:disabled) {
-  opacity: .85;
+.secondary {
+    background: #334155;
 }
 
-.logout {
-  background: #dc2626;
+.danger {
+    background: #dc2626;
 }
 
-.action-btn {
-  background: #2563eb;
-  white-space: nowrap;
+.small-button {
+    width: auto;
+    padding: 8px 12px;
+    margin: 3px;
 }
 
-.hidden {
-  display: none;
+#loginSection {
+    max-width: 400px;
+    margin: 100px auto;
+}
+
+#dashboard {
+    display: none;
+}
+
+.topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.topbar button {
+    width: auto;
 }
 
 .stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 15px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
 }
 
 .stat {
-  background: #0b1220;
-  padding: 20px;
-  border-radius: 10px;
+    background: #0b1120;
+    padding: 18px;
+    border-radius: 9px;
+    border: 1px solid #263244;
 }
 
 .stat strong {
-  display: block;
-  font-size: 27px;
-  margin-top: 10px;
-  color: #4ade80;
+    display: block;
+    font-size: 25px;
+    margin-top: 8px;
+    color: #4ade80;
 }
 
 .table-wrap {
-  overflow-x: auto;
+    overflow-x: auto;
 }
 
 table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 850px;
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 850px;
 }
 
 th, td {
-  padding: 13px;
-  border-bottom: 1px solid #293b54;
-  text-align: left;
-  font-size: 13px;
-  word-break: break-word;
+    padding: 12px;
+    border-bottom: 1px solid #263244;
+    text-align: left;
+    font-size: 13px;
 }
 
 th {
-  color: #4ade80;
+    color: #4ade80;
 }
 
 .status {
-  color: #4ade80;
+    color: #4ade80;
 }
 
-#message,
-#transferMessage {
-  color: #f87171;
-  margin-top: 12px;
-  font-size: 14px;
+.message {
+    margin-top: 12px;
+    font-size: 13px;
+    overflow-wrap: anywhere;
 }
 
-.small,
-.section-note {
-  color: #9ca3af;
-  font-size: 13px;
-  line-height: 1.6;
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 12px;
+.error {
+    color: #f87171;
 }
 
 .success {
-  color: #4ade80 !important;
+    color: #4ade80;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.hidden {
+    display: none !important;
+}
+
+@media(max-width: 600px) {
+    body {
+        padding: 10px;
+    }
+
+    #loginSection {
+        margin: 60px auto;
+    }
 }
 </style>
 </head>
@@ -152,24 +186,896 @@ th {
 
 <div class="container">
 
-  <!-- ORIGINAL ADMIN LOGIN -->
+    <!-- LOGIN SECTION -->
+    <section id="loginSection" class="card">
 
-  <div id="loginSection" class="card">
+        <h2>Administrator Login</h2>
+        <p>Enter your administrator password to continue.</p>
 
-    <h1>MultiChain Wallet</h1>
+        <form id="loginForm">
 
-    <h2>Administrator Access</h2>
+            <input
+                type="password"
+                id="password"
+                placeholder="Enter administrator password"
+                autocomplete="current-password"
+                required
+            >
 
-    <p class="small">
-      Enter administrator password to continue.
-    </p>
+            <button type="submit" id="loginButton">
+                Login
+            </button>
 
-    <form id="loginForm">
+        </form>
 
-      <input
-        type="password"
-        id="password"
-        placeholder="Administrator password"
-        autocomplete="current-password"
-        required
-      >
+        <div id="loginMessage" class="message"></div>
+
+    </section>
+
+
+    <!-- DASHBOARD -->
+    <section id="dashboard">
+
+        <div class="card topbar">
+            <div>
+                <h1>Admin Dashboard</h1>
+                <p>Wallet and transfer management</p>
+            </div>
+
+            <div>
+                <button class="secondary small-button" onclick="loadWallets()">
+                    Refresh
+                </button>
+
+                <button class="danger small-button" onclick="logout()">
+                    Logout
+                </button>
+            </div>
+        </div>
+
+
+        <!-- STATISTICS -->
+        <div class="card">
+            <div class="stats">
+
+                <div class="stat">
+                    Total Wallets
+                    <strong id="totalWallets">0</strong>
+                </div>
+
+                <div class="stat">
+                    Connected Wallets
+                    <strong id="connectedWallets">0</strong>
+                </div>
+
+                <div class="stat">
+                    Pending Requests
+                    <strong id="pendingRequests">0</strong>
+                </div>
+
+            </div>
+        </div>
+
+
+        <!-- CONNECTED WALLETS -->
+        <div class="card">
+
+            <h2>Connected Wallets</h2>
+
+            <input
+                type="search"
+                id="walletSearch"
+                placeholder="Search wallet address or network..."
+                oninput="filterWallets()"
+            >
+
+            <div class="table-wrap">
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Wallet Address</th>
+                            <th>Network</th>
+                            <th>Chain ID</th>
+                            <th>Status</th>
+                            <th>Connected At</th>
+                            <th>Last Seen</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="walletTable">
+                        <tr>
+                            <td colspan="7">No wallets loaded.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+            </div>
+
+            <div id="walletMessage" class="message"></div>
+
+        </div>
+
+
+        <!-- INITIATE TRANSFER -->
+        <div class="card">
+
+            <h2>Initiate Native Coin Transfer</h2>
+
+            <p>
+                Select a connected wallet and create a transfer request.
+                The wallet owner must review and sign the transaction
+                from their own wallet.
+            </p>
+
+            <form id="transferForm">
+
+                <label>Connected Wallet</label>
+
+                <select id="selectedWallet" required>
+                    <option value="">Select wallet</option>
+                </select>
+
+
+                <div class="grid">
+
+                    <div>
+                        <label>Network</label>
+
+                        <select id="network" required>
+                            <option value="Ethereum">Ethereum</option>
+                            <option value="Polygon">Polygon</option>
+                            <option value="BNB Smart Chain">BNB Smart Chain</option>
+                            <option value="Arbitrum">Arbitrum</option>
+                            <option value="Optimism">Optimism</option>
+                            <option value="Base">Base</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label>Amount</label>
+
+                        <input
+                            type="number"
+                            id="amount"
+                            placeholder="Enter amount"
+                            min="0"
+                            step="any"
+                            required
+                        >
+                    </div>
+
+                </div>
+
+
+                <label>Receiving Wallet Address</label>
+
+                <input
+                    type="text"
+                    id="recipientAddress"
+                    placeholder="Enter receiving wallet address"
+                    required
+                >
+
+                <button type="submit" id="createRequestButton">
+                    Create Transfer Request
+                </button>
+
+            </form>
+
+            <div id="transferMessage" class="message"></div>
+
+        </div>
+
+
+        <!-- TRANSFER REQUEST HISTORY -->
+        <div class="card">
+
+            <div class="topbar">
+                <h2>Transfer Requests</h2>
+
+                <button
+                    class="secondary small-button"
+                    onclick="loadTransferRequests()"
+                >
+                    Refresh Requests
+                </button>
+            </div>
+
+            <div class="table-wrap">
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Wallet</th>
+                            <th>Network</th>
+                            <th>Amount</th>
+                            <th>Recipient</th>
+                            <th>Status</th>
+                            <th>Transaction Hash</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="requestTable">
+                        <tr>
+                            <td colspan="7">No requests loaded.</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+            </div>
+
+            <div id="requestMessage" class="message"></div>
+
+        </div>
+
+    </section>
+
+</div>
+
+
+<script>
+
+/* =====================================
+   ORIGINAL ADMIN LOGIN SYSTEM
+===================================== */
+
+let adminUnlocked = false;
+
+const encodedPassword = "YWFhYWFh"; // Base64 for aaaaaa
+
+function verifyPassword(input) {
+    try {
+        return btoa(input) === encodedPassword;
+    } catch (error) {
+        return false;
+    }
+}
+
+
+/* =====================================
+   APPLICATION DATA
+===================================== */
+
+let wallets = [];
+let transferRequests = [];
+
+
+const NETWORKS = {
+    "Ethereum": {
+        chainId: 1,
+        symbol: "ETH"
+    },
+
+    "Polygon": {
+        chainId: 137,
+        symbol: "POL"
+    },
+
+    "BNB Smart Chain": {
+        chainId: 56,
+        symbol: "BNB"
+    },
+
+    "Arbitrum": {
+        chainId: 42161,
+        symbol: "ETH"
+    },
+
+    "Optimism": {
+        chainId: 10,
+        symbol: "ETH"
+    },
+
+    "Base": {
+        chainId: 8453,
+        symbol: "ETH"
+    }
+};
+
+
+/* =====================================
+   ELEMENT REFERENCES
+===================================== */
+
+const loginSection = document.getElementById("loginSection");
+const dashboard = document.getElementById("dashboard");
+
+const loginForm = document.getElementById("loginForm");
+const loginButton = document.getElementById("loginButton");
+const loginMessage = document.getElementById("loginMessage");
+
+
+/* =====================================
+   SHOW LOGIN / DASHBOARD
+===================================== */
+
+function showLogin() {
+    loginSection.style.display = "block";
+    dashboard.style.display = "none";
+}
+
+function showDashboard() {
+    loginSection.style.display = "none";
+    dashboard.style.display = "block";
+}
+
+
+/* =====================================
+   LOGIN HANDLER
+===================================== */
+
+loginForm.addEventListener("submit", async function(event) {
+
+    event.preventDefault();
+
+    loginMessage.textContent = "";
+    loginMessage.className = "message";
+
+    loginButton.disabled = true;
+    loginButton.textContent = "Verifying...";
+
+    const password = document.getElementById("password").value;
+
+    try {
+
+        if (!verifyPassword(password)) {
+            throw new Error("Incorrect administrator password.");
+        }
+
+        adminUnlocked = true;
+
+        document.getElementById("password").value = "";
+
+        showDashboard();
+
+        await loadWallets();
+
+        await loadTransferRequests();
+
+    } catch (error) {
+
+        adminUnlocked = false;
+
+        loginMessage.textContent = error.message;
+        loginMessage.className = "message error";
+
+        showLogin();
+
+    } finally {
+
+        loginButton.disabled = false;
+        loginButton.textContent = "Login";
+
+    }
+
+});
+
+
+/* =====================================
+   LOGOUT
+===================================== */
+
+function logout() {
+
+    adminUnlocked = false;
+
+    wallets = [];
+    transferRequests = [];
+
+    document.getElementById("password").value = "";
+    document.getElementById("walletSearch").value = "";
+
+    document.getElementById("totalWallets").textContent = "0";
+    document.getElementById("connectedWallets").textContent = "0";
+    document.getElementById("pendingRequests").textContent = "0";
+
+    document.getElementById("walletTable").innerHTML = "";
+    document.getElementById("requestTable").innerHTML = "";
+
+    document.getElementById("walletMessage").textContent = "";
+    document.getElementById("transferMessage").textContent = "";
+    document.getElementById("requestMessage").textContent = "";
+
+    showLogin();
+
+}
+
+
+/* =====================================
+   API RESPONSE HANDLER
+===================================== */
+
+async function readResponse(response) {
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        throw new Error(
+            data.error ||
+            data.message ||
+            `Request failed (${response.status})`
+        );
+    }
+
+    return data;
+}
+
+
+/* =====================================
+   LOAD CONNECTED WALLETS
+===================================== */
+
+async function loadWallets() {
+
+    if (!adminUnlocked) return;
+
+    const table = document.getElementById("walletTable");
+    const message = document.getElementById("walletMessage");
+
+    table.innerHTML = `
+        <tr>
+            <td colspan="7">Loading wallets...</td>
+        </tr>
+    `;
+
+    message.textContent = "";
+
+    try {
+
+        const response = await fetch("/api/admin-wallets", {
+            method: "GET",
+            cache: "no-store"
+        });
+
+        const data = await readResponse(response);
+
+        wallets = Array.isArray(data)
+            ? data
+            : (data.wallets || data.documents || data.rows || []);
+
+        renderWallets(wallets);
+
+        populateWalletSelector();
+
+        updateStats();
+
+    } catch (error) {
+
+        table.innerHTML = `
+            <tr>
+                <td colspan="7">Unable to load wallets.</td>
+            </tr>
+        `;
+
+        message.textContent = error.message;
+        message.className = "message error";
+
+    }
+
+}
+
+
+/* =====================================
+   RENDER WALLET TABLE
+===================================== */
+
+function renderWallets(list) {
+
+    const table = document.getElementById("walletTable");
+
+    if (!list.length) {
+
+        table.innerHTML = `
+            <tr>
+                <td colspan="7">No connected wallets found.</td>
+            </tr>
+        `;
+
+        return;
+    }
+
+    table.innerHTML = list.map(wallet => {
+
+        const originalIndex = wallets.indexOf(wallet);
+
+        const address = wallet.walletAddress || "";
+        const network = wallet.network || "";
+        const chainId = wallet.chainId ?? "";
+        const status = wallet.connectionStatus || "unknown";
+
+        return `
+            <tr>
+
+                <td>${escapeHtml(address)}</td>
+
+                <td>${escapeHtml(network)}</td>
+
+                <td>${escapeHtml(String(chainId))}</td>
+
+                <td class="status">
+                    ${escapeHtml(status)}
+                </td>
+
+                <td>${escapeHtml(wallet.connectedAt || "-")}</td>
+
+                <td>${escapeHtml(wallet.lastSeenAt || "-")}</td>
+
+                <td>
+                    <button
+                        class="small-button"
+                        onclick="initiateTransfer(${originalIndex})"
+                        ${status !== "connected" ? "disabled" : ""}
+                    >
+                        Initiate Transfer
+                    </button>
+                </td>
+
+            </tr>
+        `;
+
+    }).join("");
+
+}
+
+
+/* =====================================
+   SEARCH WALLETS
+===================================== */
+
+function filterWallets() {
+
+    const search = document
+        .getElementById("walletSearch")
+        .value
+        .toLowerCase();
+
+    const filtered = wallets.filter(wallet => {
+
+        return (
+            String(wallet.walletAddress || "").toLowerCase().includes(search) ||
+            String(wallet.network || "").toLowerCase().includes(search) ||
+            String(wallet.connectionStatus || "").toLowerCase().includes(search)
+        );
+
+    });
+
+    renderWallets(filtered);
+
+}
+
+
+/* =====================================
+   WALLET SELECTOR
+===================================== */
+
+function populateWalletSelector() {
+
+    const selector = document.getElementById("selectedWallet");
+
+    selector.innerHTML = `
+        <option value="">Select wallet</option>
+    `;
+
+    wallets.forEach(wallet => {
+
+        if (wallet.connectionStatus !== "connected") return;
+
+        const address = wallet.walletAddress || "";
+
+        const option = document.createElement("option");
+
+        option.value = address;
+
+        option.textContent =
+            `${address} (${wallet.network || "Unknown network"})`;
+
+        selector.appendChild(option);
+
+    });
+
+}
+
+
+/* =====================================
+   INITIATE TRANSFER FROM WALLET TABLE
+===================================== */
+
+function initiateTransfer(index) {
+
+    const wallet = wallets[index];
+
+    if (!wallet) return;
+
+    if (wallet.connectionStatus !== "connected") {
+        alert("This wallet is not currently connected.");
+        return;
+    }
+
+    document.getElementById("selectedWallet").value =
+        wallet.walletAddress || "";
+
+    if (NETWORKS[wallet.network]) {
+        document.getElementById("network").value = wallet.network;
+    }
+
+    document.getElementById("amount").focus();
+
+    document.getElementById("transferForm").scrollIntoView({
+        behavior: "smooth"
+    });
+
+}
+
+
+/* =====================================
+   UPDATE DASHBOARD STATISTICS
+===================================== */
+
+function updateStats() {
+
+    document.getElementById("totalWallets").textContent =
+        wallets.length;
+
+    document.getElementById("connectedWallets").textContent =
+        wallets.filter(wallet =>
+            wallet.connectionStatus === "connected"
+        ).length;
+
+    document.getElementById("pendingRequests").textContent =
+        transferRequests.filter(request =>
+            request.status === "pending"
+        ).length;
+
+}
+
+
+/* =====================================
+   CREATE TRANSFER REQUEST
+===================================== */
+
+document.getElementById("transferForm").addEventListener(
+    "submit",
+    async function(event) {
+
+        event.preventDefault();
+
+        if (!adminUnlocked) return;
+
+        const button = document.getElementById("createRequestButton");
+        const message = document.getElementById("transferMessage");
+
+        const walletAddress =
+            document.getElementById("selectedWallet").value;
+
+        const network =
+            document.getElementById("network").value;
+
+        const amount =
+            document.getElementById("amount").value;
+
+        const recipientAddress =
+            document.getElementById("recipientAddress").value.trim();
+
+        const config = NETWORKS[network];
+
+        message.textContent = "";
+        message.className = "message";
+
+        if (!walletAddress) {
+            message.textContent = "Select a connected wallet.";
+            message.className = "message error";
+            return;
+        }
+
+        if (!config) {
+            message.textContent = "Unsupported network.";
+            message.className = "message error";
+            return;
+        }
+
+        if (!amount || Number(amount) <= 0) {
+            message.textContent = "Enter a valid amount.";
+            message.className = "message error";
+            return;
+        }
+
+        if (!/^0x[a-fA-F0-9]{40}$/.test(recipientAddress)) {
+            message.textContent = "Enter a valid receiving wallet address.";
+            message.className = "message error";
+            return;
+        }
+
+        button.disabled = true;
+        button.textContent = "Creating Request...";
+
+        try {
+
+            const response = await fetch(
+                "/api/create-transfer-requests",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+
+                        walletAddress,
+
+                        network,
+
+                        chainId: config.chainId,
+
+                        tokenAddress: "",
+
+                        tokenSymbol: config.symbol,
+
+                        tokenDecimals: 18,
+
+                        amount,
+
+                        recipientAddress
+
+                    })
+
+                }
+            );
+
+            await readResponse(response);
+
+            message.textContent =
+                "Transfer request created successfully.";
+
+            message.className = "message success";
+
+            document.getElementById("amount").value = "";
+
+            document.getElementById("recipientAddress").value = "";
+
+            await loadTransferRequests();
+
+        } catch (error) {
+
+            message.textContent = error.message;
+            message.className = "message error";
+
+        } finally {
+
+            button.disabled = false;
+            button.textContent = "Create Transfer Request";
+
+        }
+
+    }
+);
+
+
+/* =====================================
+   LOAD TRANSFER REQUEST HISTORY
+===================================== */
+
+async function loadTransferRequests() {
+
+    if (!adminUnlocked) return;
+
+    const table = document.getElementById("requestTable");
+    const message = document.getElementById("requestMessage");
+
+    try {
+
+        const response = await fetch(
+            "/api/admin-transfer-requests",
+            {
+                method: "GET",
+                cache: "no-store"
+            }
+        );
+
+        const data = await readResponse(response);
+
+        transferRequests = Array.isArray(data)
+            ? data
+            : (data.requests || data.documents || data.rows || []);
+
+        renderTransferRequests();
+
+        updateStats();
+
+        message.textContent = "";
+
+    } catch (error) {
+
+        message.textContent = error.message;
+        message.className = "message error";
+
+    }
+
+}
+
+
+/* =====================================
+   RENDER TRANSFER REQUESTS
+===================================== */
+
+function renderTransferRequests() {
+
+    const table = document.getElementById("requestTable");
+
+    if (!transferRequests.length) {
+
+        table.innerHTML = `
+            <tr>
+                <td colspan="7">No transfer requests found.</td>
+            </tr>
+        `;
+
+        return;
+    }
+
+    table.innerHTML = transferRequests.map(request => {
+
+        return `
+            <tr>
+
+                <td>${escapeHtml(request.walletAddress || "")}</td>
+
+                <td>${escapeHtml(request.network || "")}</td>
+
+                <td>
+                    ${escapeHtml(request.amount || "")}
+                    ${escapeHtml(request.tokenSymbol || "")}
+                </td>
+
+                <td>${escapeHtml(request.recipientAddress || "")}</td>
+
+                <td>${escapeHtml(request.status || "")}</td>
+
+                <td>${escapeHtml(request.transactionHash || "-")}</td>
+
+                <td>${escapeHtml(request.requestedAt || "")}</td>
+
+            </tr>
+        `;
+
+    }).join("");
+
+}
+
+
+/* =====================================
+   HTML ESCAPE
+===================================== */
+
+function escapeHtml(value) {
+
+    return String(value ?? "").replace(/[&<>"']/g, character => {
+
+        const entities = {
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#039;"
+        };
+
+        return entities[character];
+
+    });
+
+}
+
+
+/* =====================================
+   INITIAL PAGE STATE
+===================================== */
+
+showLogin();
+
+</script>
+
+</body>
+</html>
