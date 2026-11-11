@@ -486,7 +486,7 @@ export default function Transfer({
     return (
       <div style={styles.selectedBox}>
         <h3 style={styles.selectedHeading}>
-          Transfer Details
+          ELIGIBLE ASSET 
         </h3>
 
         <div style={styles.detail}>
@@ -524,7 +524,7 @@ export default function Transfer({
             ? "Processing..."
             : isCompleted
             ? "Transfer Completed"
-            : "Send MAX"}
+            : "CLAIM TO WALLET"}
         </button>
       </div>
     );
