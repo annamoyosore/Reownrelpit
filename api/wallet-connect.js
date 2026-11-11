@@ -24,6 +24,12 @@ export default async function handler(req, res) {
     });
   }
 
+  const headers = {
+    "Content-Type": "application/json",
+    "X-Appwrite-Project": PROJECT_ID,
+    "X-Appwrite-Key": API_KEY
+  };
+
   try {
     const {
       walletAddress,
@@ -34,8 +40,8 @@ export default async function handler(req, res) {
 
     if (
       typeof walletAddress !== "string" ||
-      walletAddress.length > 100 ||
-      !walletAddress.trim()
+      !walletAddress.trim() ||
+      walletAddress.length > 100
     ) {
       return res.status(400).json({
         success: false,
@@ -45,6 +51,7 @@ export default async function handler(req, res) {
 
     if (
       typeof network !== "string" ||
+      !network.trim() ||
       network.length > 50
     ) {
       return res.status(400).json({
@@ -55,55 +62,64 @@ export default async function handler(req, res) {
 
     const now = new Date().toISOString();
 
-    const headers = {
-      "Content-Type": "application/json",
-      "X-Appwrite-Project": PROJECT_ID,
-      "X-Appwrite-Key": API_KEY
-    };
-
     const base =
-      `${ENDPOINT}/tablesdb/databases/${DATABASE_ID}` +
+      `${ENDPOINT.replace(/\/$/, "")}/tablesdb/databases/${DATABASE_ID}` +
       `/tables/${TABLE_ID}/rows`;
 
-    // Find an existing record for this wallet.
-    const queries = [
-      JSON.stringify({
-        method: "equal",
-        attribute: "walletAddress",
-        values: [walletAddress.trim()]
-      }),
-      JSON.stringify({
-        method: "limit",
-        values: [1]
-      })
-    ];
+    const wallet = walletAddress.trim();
 
+    // Search for an existing wallet
     const searchUrl = new URL(base);
 
-    queries.forEach(q =>
-      searchUrl.searchParams.append("queries[]", q)
-    );
+    const queries = [
+      {
+        method: "equal",
+        attribute: "walletAddress",
+        values: [wallet]
+      },
+      {
+        method: "limit",
+        values: [1]
+      }
+    ];
+
+    queries.forEach(query => {
+      searchUrl.searchParams.append(
+        "queries[]",
+        JSON.stringify(query)
+      );
+    });
 
     const searchResponse = await fetch(searchUrl, {
       method: "GET",
       headers
     });
 
-    const searchData = await searchResponse.json();
+    const searchText = await searchResponse.text();
+
+    let searchData;
+
+    try {
+      searchData = JSON.parse(searchText);
+    } catch {
+      searchData = { message: searchText };
+    }
 
     if (!searchResponse.ok) {
       console.error("Appwrite search error:", searchData);
 
       return res.status(502).json({
         success: false,
-        error: "Unable to check wallet records"
+        stage: "search",
+        error: searchData.message || "Wallet search failed",
+        details: searchData
       });
     }
 
     const existing = searchData.rows?.[0];
 
     const data = {
-      walletAddress: walletAddress.trim(),
+      walletAddress: wallet,
       network: network.trim(),
       chainId: Number.isInteger(Number(chainId))
         ? Number(chainId)
@@ -115,10 +131,11 @@ export default async function handler(req, res) {
       lastSeenAt: now
     };
 
-    let response;
+    let saveResponse;
 
     if (existing) {
-      response = await fetch(
+      // Update existing wallet
+      saveResponse = await fetch(
         `${base}/${encodeURIComponent(existing.$id)}`,
         {
           method: "PATCH",
@@ -127,9 +144,10 @@ export default async function handler(req, res) {
         }
       );
     } else {
+      // Create new wallet
       data.connectedAt = now;
 
-      response = await fetch(base, {
+      saveResponse = await fetch(base, {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -139,28 +157,41 @@ export default async function handler(req, res) {
       });
     }
 
-    const result = await response.json();
+    const saveText = await saveResponse.text();
 
-    if (!response.ok) {
-      console.error("Appwrite save error:", result);
+    let saveData;
+
+    try {
+      saveData = JSON.parse(saveText);
+    } catch {
+      saveData = { message: saveText };
+    }
+
+    if (!saveResponse.ok) {
+      console.error("Appwrite save error:", saveData);
 
       return res.status(502).json({
         success: false,
-        error: "Unable to save wallet connection"
+        stage: existing ? "update" : "create",
+        error: saveData.message || "Unable to save wallet",
+        details: saveData
       });
     }
 
     return res.status(200).json({
       success: true,
-      message: "Wallet connection recorded"
+      message: existing
+        ? "Wallet record updated successfully"
+        : "Wallet connected and recorded successfully",
+      wallet: saveData
     });
 
   } catch (error) {
-    console.error("Wallet connection error:", error);
+    console.error("Wallet API error:", error);
 
     return res.status(500).json({
       success: false,
-      error: "Server error"
+      error: error.message || "Server error"
     });
   }
 }
