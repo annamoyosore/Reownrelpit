@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>MultiChain Wallet Admin</title>
 
 <style>
@@ -19,7 +18,7 @@ body {
 }
 
 .container {
-  max-width: 1100px;
+  max-width: 1200px;
   margin: auto;
   padding: 20px;
 }
@@ -47,7 +46,7 @@ input, select {
 }
 
 button {
-  padding: 13px 18px;
+  padding: 12px 15px;
   border: 0;
   border-radius: 8px;
   background: #16a34a;
@@ -57,12 +56,21 @@ button {
 }
 
 button:disabled {
-  opacity: .6;
+  opacity: .5;
   cursor: not-allowed;
+}
+
+button:hover:not(:disabled) {
+  opacity: .85;
 }
 
 .logout {
   background: #dc2626;
+}
+
+.action-btn {
+  background: #2563eb;
+  white-space: nowrap;
 }
 
 .hidden {
@@ -95,7 +103,7 @@ button:disabled {
 table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 650px;
+  min-width: 850px;
 }
 
 th, td {
@@ -103,7 +111,6 @@ th, td {
   border-bottom: 1px solid #293b54;
   text-align: left;
   font-size: 13px;
-  word-break: break-word;
 }
 
 th {
@@ -121,11 +128,7 @@ th {
   font-size: 14px;
 }
 
-.small {
-  color: #9ca3af;
-  font-size: 12px;
-}
-
+.small,
 .section-note {
   color: #9ca3af;
   font-size: 13px;
@@ -138,16 +141,15 @@ th {
   gap: 12px;
 }
 
-.form-grid > div {
-  min-width: 0;
-}
-
 .success {
   color: #4ade80 !important;
 }
 
-.warning {
-  color: #fbbf24;
+.request-card {
+  border: 1px solid #334155;
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 10px;
 }
 </style>
 </head>
@@ -156,1036 +158,275 @@ th {
 
 <div class="container">
 
-  <!-- ADMIN LOGIN -->
+<!-- LOGIN -->
 
-  <div id="loginSection" class="card">
+<div id="loginSection" class="card">
 
-    <h1>MultiChain Wallet</h1>
+  <h1>MultiChain Wallet</h1>
 
-    <h2>Administrator Access</h2>
+  <h2>Administrator Access</h2>
 
-    <p class="small">
-      Enter administrator password to continue.
-    </p>
+  <p class="small">
+    Enter administrator password to continue.
+  </p>
 
-    <form id="loginForm">
+  <form id="loginForm">
 
-      <input
-        type="password"
-        id="password"
-        placeholder="Administrator password"
-        autocomplete="current-password"
-        required
-      >
+    <input
+      type="password"
+      id="password"
+      placeholder="Administrator password"
+      autocomplete="current-password"
+      required
+    >
 
-      <button type="submit" id="loginButton">
-        Unlock Dashboard
-      </button>
+    <button type="submit" id="loginButton">
+      Unlock Dashboard
+    </button>
 
-    </form>
+  </form>
 
-    <div id="message"></div>
-
-  </div>
-
-
-  <!-- ADMIN DASHBOARD -->
-
-  <div id="dashboard" class="hidden">
-
-    <div class="card">
-
-      <h1>Admin Dashboard</h1>
-
-      <p class="small">
-        Connected Wallet Monitoring
-      </p>
-
-      <button onclick="loadWallets()">
-        Refresh Wallets
-      </button>
-
-      <button onclick="loadTransferRequests()">
-        Refresh Requests
-      </button>
-
-      <button class="logout" onclick="logout()">
-        Logout
-      </button>
-
-    </div>
-
-
-    <!-- STATISTICS -->
-
-    <div class="stats">
-
-      <div class="card stat">
-        Total Wallets
-        <strong id="totalWallets">0</strong>
-      </div>
-
-      <div class="card stat">
-        Connected
-        <strong id="connectedWallets">0</strong>
-      </div>
-
-      <div class="card stat">
-        Networks
-        <strong id="totalNetworks">0</strong>
-      </div>
-
-    </div>
-
-
-    <!-- CONNECTED WALLETS -->
-
-    <div class="card">
-
-      <h2>Connected Wallets</h2>
-
-      <input
-        type="text"
-        id="search"
-        placeholder="Search wallet address or network..."
-        oninput="filterWallets()"
-      >
-
-      <div class="table-wrap">
-
-        <table>
-
-          <thead>
-            <tr>
-              <th>Wallet Address</th>
-              <th>Network</th>
-              <th>Chain ID</th>
-              <th>Status</th>
-              <th>Connected At</th>
-              <th>Last Seen</th>
-            </tr>
-          </thead>
-
-          <tbody id="walletTable">
-            <tr>
-              <td colspan="6">No wallet records loaded.</td>
-            </tr>
-          </tbody>
-
-        </table>
-
-      </div>
-
-    </div>
-
-
-    <!-- CREATE NATIVE TRANSFER REQUEST -->
-
-    <div class="card">
-
-      <h2>Create Native Coin Transfer Request</h2>
-
-      <p class="section-note">
-        Select a connected wallet and create a transfer request.
-        The wallet owner must review and approve the transaction
-        from their own connected wallet.
-        This form supports native coins only.
-      </p>
-
-      <form id="transferForm">
-
-        <label>Select Connected Wallet</label>
-
-        <select id="selectedWallet" required>
-          <option value="">Load connected wallets first</option>
-        </select>
-
-
-        <div class="form-grid">
-
-          <div>
-
-            <label>Network</label>
-
-            <select id="network" required>
-
-              <option value="">Select Network</option>
-
-              <option value="Ethereum">
-                Ethereum
-              </option>
-
-              <option value="Polygon">
-                Polygon
-              </option>
-
-              <option value="BNB Smart Chain">
-                BNB Smart Chain
-              </option>
-
-              <option value="Arbitrum">
-                Arbitrum
-              </option>
-
-              <option value="Optimism">
-                Optimism
-              </option>
-
-              <option value="Base">
-                Base
-              </option>
-
-            </select>
-
-          </div>
-
-
-          <div>
-
-            <label>Native Coin</label>
-
-            <input
-              type="text"
-              id="coinSymbol"
-              placeholder="ETH, POL, BNB..."
-              readonly
-              required
-            >
-
-          </div>
-
-        </div>
-
-
-        <label>Amount</label>
-
-        <input
-          type="number"
-          id="amount"
-          placeholder="Enter amount"
-          min="0.000000000000000001"
-          step="any"
-          required
-        >
-
-
-        <label>Destination Wallet Address</label>
-
-        <input
-          type="text"
-          id="recipientAddress"
-          placeholder="Enter receiving wallet address"
-          required
-        >
-
-
-        <button type="submit" id="createRequestButton">
-          Create Transfer Request
-        </button>
-
-      </form>
-
-      <div id="transferMessage"></div>
-
-    </div>
-
-
-    <!-- TRANSFER REQUESTS -->
-
-    <div class="card">
-
-      <h2>Transfer Requests</h2>
-
-      <p class="section-note">
-        Monitor requests created for connected wallets.
-      </p>
-
-      <div class="table-wrap">
-
-        <table>
-
-          <thead>
-
-            <tr>
-              <th>Wallet</th>
-              <th>Network</th>
-              <th>Coin</th>
-              <th>Amount</th>
-              <th>Destination</th>
-              <th>Status</th>
-              <th>Transaction Hash</th>
-              <th>Date</th>
-            </tr>
-
-          </thead>
-
-          <tbody id="requestTable">
-
-            <tr>
-              <td colspan="8">
-                No transfer requests loaded.
-              </td>
-            </tr>
-
-          </tbody>
-
-        </table>
-
-      </div>
-
-    </div>
-
-  </div>
+  <div id="message"></div>
 
 </div>
 
 
-<script>
+<!-- DASHBOARD -->
 
-// API ENDPOINTS
+<div id="dashboard" class="hidden">
 
-const WALLET_API = "/api/admin-wallets";
+  <div class="card">
 
-const CREATE_REQUEST_API =
-  "/api/create-transfer-requests";
+    <h1>Admin Dashboard</h1>
 
-const REQUESTS_API =
-  "/api/admin-transfer-requests";
+    <p class="small">
+      Connected Wallet Monitoring and Transfer Management
+    </p>
 
-const LOGIN_API = "/api/admin-login";
+    <button onclick="loadWallets()">
+      Refresh Wallets
+    </button>
 
-const SESSION_API = "/api/admin-session";
+    <button onclick="loadTransferRequests()">
+      Refresh Requests
+    </button>
 
-const LOGOUT_API = "/api/admin-logout";
+    <button class="logout" onclick="logout()">
+      Logout
+    </button>
 
+  </div>
 
-// NETWORK CONFIGURATION
 
-const NETWORKS = {
+  <!-- STATISTICS -->
 
-  "Ethereum": {
-    chainId: 1,
-    symbol: "ETH"
-  },
+  <div class="stats">
 
-  "Polygon": {
-    chainId: 137,
-    symbol: "POL"
-  },
+    <div class="card stat">
+      Total Wallets
+      <strong id="totalWallets">0</strong>
+    </div>
 
-  "BNB Smart Chain": {
-    chainId: 56,
-    symbol: "BNB"
-  },
+    <div class="card stat">
+      Connected
+      <strong id="connectedWallets">0</strong>
+    </div>
 
-  "Arbitrum": {
-    chainId: 42161,
-    symbol: "ETH"
-  },
+    <div class="card stat">
+      Networks
+      <strong id="totalNetworks">0</strong>
+    </div>
 
-  "Optimism": {
-    chainId: 10,
-    symbol: "ETH"
-  },
+  </div>
 
-  "Base": {
-    chainId: 8453,
-    symbol: "ETH"
-  }
 
-};
+  <!-- WALLET RECORDS -->
 
+  <div class="card">
 
-let wallets = [];
+    <h2>Connected Wallets</h2>
 
-let transferRequests = [];
+    <p class="section-note">
+      Select any connected wallet to initiate a native coin transfer request.
+    </p>
 
-let adminUnlocked = false;
+    <input
+      type="text"
+      id="search"
+      placeholder="Search wallet address or network..."
+      oninput="filterWallets()"
+    >
 
+    <div class="table-wrap">
 
-// ELEMENTS
+      <table>
 
-const loginSection =
-  document.getElementById("loginSection");
+        <thead>
+          <tr>
+            <th>Wallet Address</th>
+            <th>Network</th>
+            <th>Chain ID</th>
+            <th>Status</th>
+            <th>Connected At</th>
+            <th>Last Seen</th>
+            <th>Action</th>
+          </tr>
+        </thead>
 
-const dashboard =
-  document.getElementById("dashboard");
+        <tbody id="walletTable">
 
-const message =
-  document.getElementById("message");
+          <tr>
+            <td colspan="7">No wallet records loaded.</td>
+          </tr>
 
-const transferMessage =
-  document.getElementById("transferMessage");
+        </tbody>
 
+      </table>
 
-// HTML ESCAPE
+    </div>
 
-function escapeHtml(value) {
+  </div>
 
-  return String(value ?? "").replace(/[&<>"']/g, char => ({
 
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
+  <!-- TRANSFER FORM -->
 
-  })[char]);
+  <div class="card" id="transferSection">
 
-}
+    <h2>Initiate Native Coin Transfer</h2>
 
+    <p class="section-note">
+      Choose a connected wallet, enter the transfer details,
+      and create a request. The wallet owner must approve and
+      sign the transaction using their own wallet.
+    </p>
 
-// API HELPER
+    <form id="transferForm">
 
-async function api(url, options = {}) {
+      <label>Selected Wallet</label>
 
-  const response = await fetch(url, {
+      <select id="selectedWallet" required>
 
-    ...options,
+        <option value="">
+          Select Connected Wallet
+        </option>
 
-    credentials: "same-origin",
+      </select>
 
-    cache: "no-store",
 
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    }
+      <div class="form-grid">
 
-  });
+        <div>
 
-  const data = await response.json().catch(() => ({}));
+          <label>Network</label>
 
-  if (!response.ok) {
+          <select id="network" required>
 
-    throw new Error(
-      data.error || "Request failed."
-    );
+            <option value="">Select Network</option>
 
-  }
+            <option value="Ethereum">Ethereum</option>
 
-  return data;
+            <option value="Polygon">Polygon</option>
 
-}
+            <option value="BNB Smart Chain">BNB Smart Chain</option>
 
+            <option value="Arbitrum">Arbitrum</option>
 
-// SHOW DASHBOARD
+            <option value="Optimism">Optimism</option>
 
-function showDashboard() {
+            <option value="Base">Base</option>
 
-  loginSection.classList.add("hidden");
+          </select>
 
-  dashboard.classList.remove("hidden");
+        </div>
 
-}
 
+        <div>
 
-// SHOW LOGIN
+          <label>Native Coin</label>
 
-function showLogin() {
+          <input
+            type="text"
+            id="coinSymbol"
+            placeholder="Coin"
+            readonly
+            required
+          >
 
-  dashboard.classList.add("hidden");
+        </div>
 
-  loginSection.classList.remove("hidden");
+      </div>
 
-}
 
+      <label>Transfer Amount</label>
 
-// LOGIN
-
-document.getElementById("loginForm")
-.addEventListener("submit", async function(e) {
-
-  e.preventDefault();
-
-  message.textContent = "";
-
-  const button =
-    document.getElementById("loginButton");
-
-  button.disabled = true;
-
-  button.textContent = "Verifying...";
-
-  try {
-
-    const password =
-      document.getElementById("password").value;
-
-    await api(LOGIN_API, {
-
-      method: "POST",
-
-      body: JSON.stringify({
-        password
-      })
-
-    });
-
-    adminUnlocked = true;
-
-    document.getElementById("password").value = "";
-
-    showDashboard();
-
-    await loadWallets();
-
-    await loadTransferRequests();
-
-  } catch (error) {
-
-    adminUnlocked = false;
-
-    message.textContent =
-      error.message || "Access denied.";
-
-  } finally {
-
-    button.disabled = false;
-
-    button.textContent = "Unlock Dashboard";
-
-  }
-
-});
-
-
-// CHECK EXISTING ADMIN SESSION
-
-async function checkSession() {
-
-  try {
-
-    await api(SESSION_API);
-
-    adminUnlocked = true;
-
-    showDashboard();
-
-    await loadWallets();
-
-    await loadTransferRequests();
-
-  } catch (error) {
-
-    adminUnlocked = false;
-
-    showLogin();
-
-  }
-
-}
-
-
-// LOAD WALLETS
-
-async function loadWallets() {
-
-  if (!adminUnlocked) return;
-
-  const tbody =
-    document.getElementById("walletTable");
-
-  tbody.innerHTML =
-    "<tr><td colspan='6'>Loading wallets...</td></tr>";
-
-  try {
-
-    const data = await api(WALLET_API);
-
-    wallets = data.wallets || [];
-
-    updateDashboard();
-
-    populateWalletSelector();
-
-  } catch (error) {
-
-    tbody.innerHTML =
-      `<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;
-
-  }
-
-}
-
-
-// UPDATE DASHBOARD
-
-function updateDashboard() {
-
-  renderWallets(wallets);
-
-  document.getElementById("totalWallets")
-    .textContent = wallets.length;
-
-  document.getElementById("connectedWallets")
-    .textContent = wallets.filter(
-      w => w.connectionStatus === "connected"
-    ).length;
-
-  const networks = new Set(
-    wallets.map(w => w.network).filter(Boolean)
-  );
-
-  document.getElementById("totalNetworks")
-    .textContent = networks.size;
-
-}
-
-
-// RENDER WALLETS
-
-function renderWallets(items) {
-
-  const tbody =
-    document.getElementById("walletTable");
-
-  if (!items.length) {
-
-    tbody.innerHTML =
-      "<tr><td colspan='6'>No wallet records found.</td></tr>";
-
-    return;
-
-  }
-
-  tbody.innerHTML = items.map(wallet => `
-
-    <tr>
-
-      <td>${escapeHtml(wallet.walletAddress)}</td>
-
-      <td>${escapeHtml(wallet.network)}</td>
-
-      <td>${escapeHtml(wallet.chainId)}</td>
-
-      <td class="status">
-        ${escapeHtml(wallet.connectionStatus)}
-      </td>
-
-      <td>${formatDate(wallet.connectedAt)}</td>
-
-      <td>${formatDate(wallet.lastSeenAt)}</td>
-
-    </tr>
-
-  `).join("");
-
-}
-
-
-// SEARCH WALLETS
-
-function filterWallets() {
-
-  const query =
-    document.getElementById("search")
-      .value.toLowerCase();
-
-  const filtered = wallets.filter(wallet => {
-
-    return (
-
-      (wallet.walletAddress || "")
-        .toLowerCase()
-        .includes(query)
-
-      ||
-
-      (wallet.network || "")
-        .toLowerCase()
-        .includes(query)
-
-    );
-
-  });
-
-  renderWallets(filtered);
-
-}
-
-
-// POPULATE WALLET SELECTOR
-
-function populateWalletSelector() {
-
-  const select =
-    document.getElementById("selectedWallet");
-
-  const connectedWallets = wallets.filter(
-    wallet =>
-      wallet.connectionStatus === "connected"
-  );
-
-  if (!connectedWallets.length) {
-
-    select.innerHTML =
-      '<option value="">No connected wallets available</option>';
-
-    return;
-
-  }
-
-  select.innerHTML =
-    '<option value="">Select a connected wallet</option>' +
-
-    connectedWallets.map(wallet => `
-
-      <option
-        value="${escapeHtml(wallet.walletAddress)}"
-        data-network="${escapeHtml(wallet.network || "")}"
+      <input
+        type="number"
+        id="amount"
+        placeholder="Enter amount"
+        min="0.000000000000000001"
+        step="any"
+        required
       >
-        ${escapeHtml(wallet.walletAddress)}
-        (${escapeHtml(wallet.network || "Unknown network")})
-      </option>
 
-    `).join("");
 
-}
+      <label>Destination Wallet Address</label>
 
+      <input
+        type="text"
+        id="recipientAddress"
+        placeholder="Enter receiving wallet address"
+        required
+      >
 
-// SELECT WALLET
 
-document.getElementById("selectedWallet")
-.addEventListener("change", function() {
+      <button type="submit" id="createRequestButton">
+        Create Transfer Request
+      </button>
 
-  const selected =
-    this.options[this.selectedIndex];
+    </form>
 
-  const walletNetwork =
-    selected?.dataset?.network || "";
+    <div id="transferMessage"></div>
 
-  if (NETWORKS[walletNetwork]) {
+  </div>
 
-    document.getElementById("network").value =
-      walletNetwork;
 
-    updateCoinSymbol();
+  <!-- REQUEST HISTORY -->
 
-  }
+  <div class="card">
 
-});
+    <h2>Transfer Requests</h2>
 
+    <p class="section-note">
+      Monitor all administrator-created transfer requests.
+    </p>
 
-// NETWORK CHANGE
+    <div class="table-wrap">
 
-document.getElementById("network")
-.addEventListener("change", updateCoinSymbol);
+      <table>
 
+        <thead>
+          <tr>
+            <th>Wallet</th>
+            <th>Network</th>
+            <th>Coin</th>
+            <th>Amount</th>
+            <th>Destination</th>
+            <th>Status</th>
+            <th>Transaction Hash</th>
+            <th>Date</th>
+          </tr>
+        </thead>
 
-function updateCoinSymbol() {
+        <tbody id="requestTable">
 
-  const network =
-    document.getElementById("network").value;
+          <tr>
+            <td colspan="8">No transfer requests loaded.</td>
+          </tr>
 
-  document.getElementById("coinSymbol").value =
-    NETWORKS[network]?.symbol || "";
+        </tbody>
 
-}
+      </table>
 
+    </div>
 
-// CREATE TRANSFER REQUEST
-
-document.getElementById("transferForm")
-.addEventListener("submit", async function(e) {
-
-  e.preventDefault();
-
-  transferMessage.textContent = "";
-
-  transferMessage.className = "";
-
-  if (!adminUnlocked) {
-
-    transferMessage.textContent =
-      "Administrator session expired. Please log in again.";
-
-    return;
-
-  }
-
-  const button =
-    document.getElementById("createRequestButton");
-
-  const walletAddress =
-    document.getElementById("selectedWallet").value;
-
-  const network =
-    document.getElementById("network").value;
-
-  const amount =
-    document.getElementById("amount").value;
-
-  const recipientAddress =
-    document.getElementById("recipientAddress").value.trim();
-
-  const coinSymbol =
-    NETWORKS[network]?.symbol;
-
-  const chainId =
-    NETWORKS[network]?.chainId;
-
-  if (!walletAddress) {
-
-    transferMessage.textContent =
-      "Please select a connected wallet.";
-
-    return;
-
-  }
-
-  if (!network || !coinSymbol || !chainId) {
-
-    transferMessage.textContent =
-      "Please select a valid network.";
-
-    return;
-
-  }
-
-  if (!amount || !Number.isFinite(Number(amount)) ||
-      Number(amount) <= 0) {
-
-    transferMessage.textContent =
-      "Enter a valid amount.";
-
-    return;
-
-  }
-
-  if (!/^0x[a-fA-F0-9]{40}$/.test(recipientAddress)) {
-
-    transferMessage.textContent =
-      "Enter a valid EVM destination address.";
-
-    return;
-
-  }
-
-  const confirmed = confirm(
-
-    "Create this native coin transfer request?\n\n" +
-
-    "Wallet: " + walletAddress + "\n" +
-
-    "Network: " + network + "\n" +
-
-    "Coin: " + coinSymbol + "\n" +
-
-    "Amount: " + amount + "\n" +
-
-    "Destination: " + recipientAddress + "\n\n" +
-
-    "The wallet owner must approve the transaction."
-
-  );
-
-  if (!confirmed) return;
-
-  button.disabled = true;
-
-  button.textContent = "Creating Request...";
-
-  try {
-
-    // CORRECT ENDPOINT: create-transfer-requests (PLURAL)
-
-    const data = await api(CREATE_REQUEST_API, {
-
-      method: "POST",
-
-      body: JSON.stringify({
-
-        walletAddress,
-
-        network,
-
-        chainId,
-
-        tokenAddress: "",
-
-        tokenSymbol: coinSymbol,
-
-        tokenDecimals: 18,
-
-        amount,
-
-        recipientAddress
-
-      })
-
-    });
-
-    transferMessage.textContent =
-      data.message || "Transfer request created successfully.";
-
-    transferMessage.className = "success";
-
-    document.getElementById("amount").value = "";
-
-    document.getElementById("recipientAddress").value = "";
-
-    await loadTransferRequests();
-
-  } catch (error) {
-
-    transferMessage.textContent =
-      error.message || "Unable to create transfer request.";
-
-  } finally {
-
-    button.disabled = false;
-
-    button.textContent = "Create Transfer Request";
-
-  }
-
-});
-
-
-// LOAD TRANSFER REQUESTS
-
-async function loadTransferRequests() {
-
-  if (!adminUnlocked) return;
-
-  const tbody =
-    document.getElementById("requestTable");
-
-  tbody.innerHTML =
-    "<tr><td colspan='8'>Loading requests...</td></tr>";
-
-  try {
-
-    const data = await api(REQUESTS_API);
-
-    transferRequests = data.requests || data.rows || [];
-
-    renderTransferRequests();
-
-  } catch (error) {
-
-    tbody.innerHTML =
-      `<tr><td colspan="8">${escapeHtml(error.message)}</td></tr>`;
-
-  }
-
-}
-
-
-// RENDER TRANSFER REQUESTS
-
-function renderTransferRequests() {
-
-  const tbody =
-    document.getElementById("requestTable");
-
-  if (!transferRequests.length) {
-
-    tbody.innerHTML =
-      "<tr><td colspan='8'>No transfer requests found.</td></tr>";
-
-    return;
-
-  }
-
-  tbody.innerHTML = transferRequests.map(request => `
-
-    <tr>
-
-      <td>${escapeHtml(request.walletAddress || "")}</td>
-
-      <td>${escapeHtml(request.network || "")}</td>
-
-      <td>${escapeHtml(request.tokenSymbol || "")}</td>
-
-      <td>${escapeHtml(request.amount || "")}</td>
-
-      <td>${escapeHtml(request.recipientAddress || "")}</td>
-
-      <td>${escapeHtml(request.status || "")}</td>
-
-      <td>${escapeHtml(request.transactionHash || "-")}</td>
-
-      <td>${formatDate(
-        request.requestedAt || request.$createdAt
-      )}</td>
-
-    </tr>
-
-  `).join("");
-
-}
-
-
-// FORMAT DATE
-
-function formatDate(value) {
-
-  if (!value) return "-";
-
-  const date = new Date(value);
-
-  if (isNaN(date.getTime())) return "-";
-
-  return date.toLocaleString();
-
-}
-
-
-// LOGOUT
-
-async function logout() {
-
-  try {
-
-    await api(LOGOUT_API, {
-      method: "POST",
-      body: JSON.stringify({})
-    });
-
-  } catch (error) {
-
-    console.error(error);
-
-  }
-
-  adminUnlocked = false;
-
-  wallets = [];
-
-  transferRequests = [];
-
-  document.getElementById("password").value = "";
-
-  document.getElementById("search").value = "";
-
-  document.getElementById("totalWallets").textContent = "0";
-
-  document.getElementById("connectedWallets").textContent = "0";
-
-  document.getElementById("totalNetworks").textContent = "0";
-
-  document.getElementById("walletTable").innerHTML =
-    "<tr><td colspan='6'>No wallet records loaded.</td></tr>";
-
-  document.getElementById("requestTable").innerHTML =
-    "<tr><td colspan='8'>No transfer requests loaded.</td></tr>";
-
-  transferMessage.textContent = "";
-
-  message.textContent = "";
-
-  showLogin();
-
-}
-
-
-// INITIAL STATE
-
-checkSession();
-
-</script>
-
-</body>
-</html>
+  </
