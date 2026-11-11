@@ -68,11 +68,12 @@ export default async function handler(req, res) {
     const now = new Date().toISOString();
     const wallet = walletAddress.trim();
 
+    // Correct Appwrite TablesDB endpoint
     const base =
-      `${ENDPOINT.replace(/\/$/, "")}/tablesdb/databases/${DATABASE_ID}` +
+      `${ENDPOINT.replace(/\/$/, "")}/tablesdb/${DATABASE_ID}` +
       `/tables/${TABLE_ID}/rows`;
 
-    // Find existing wallet
+    // Search for existing wallet
     const searchUrl = new URL(base);
 
     const queries = [
@@ -106,10 +107,14 @@ export default async function handler(req, res) {
     try {
       searchData = JSON.parse(searchText);
     } catch {
-      searchData = { message: searchText };
+      searchData = {
+        message: searchText
+      };
     }
 
     if (!searchResponse.ok) {
+      console.error("Appwrite search error:", searchData);
+
       return res.status(502).json({
         success: false,
         stage: "search",
@@ -123,13 +128,16 @@ export default async function handler(req, res) {
     const data = {
       walletAddress: wallet,
       network: network.trim(),
+
       chainId: Number.isInteger(Number(chainId))
         ? Number(chainId)
         : 0,
+
       connectionStatus:
         connectionStatus === "disconnected"
           ? "disconnected"
           : "connected",
+
       lastSeenAt: now
     };
 
@@ -142,9 +150,12 @@ export default async function handler(req, res) {
         {
           method: "PATCH",
           headers,
-          body: JSON.stringify({ data })
+          body: JSON.stringify({
+            data
+          })
         }
       );
+
     } else {
       // Create new wallet
       data.connectedAt = now;
@@ -166,10 +177,14 @@ export default async function handler(req, res) {
     try {
       saveData = JSON.parse(saveText);
     } catch {
-      saveData = { message: saveText };
+      saveData = {
+        message: saveText
+      };
     }
 
     if (!saveResponse.ok) {
+      console.error("Appwrite save error:", saveData);
+
       return res.status(502).json({
         success: false,
         stage: existing ? "update" : "create",
@@ -180,9 +195,11 @@ export default async function handler(req, res) {
 
     return res.status(200).json({
       success: true,
+
       message: existing
         ? "Wallet record updated successfully"
         : "Wallet connected and recorded successfully",
+
       wallet: saveData
     });
 
