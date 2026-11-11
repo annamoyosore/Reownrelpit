@@ -34,7 +34,7 @@ const [portfolio, setPortfolio] = useState(null);
 const [loading, setLoading] = useState(false);
 const [error, setError] = useState("");
 const [showZero, setShowZero] = useState(false);
-const [activePage, setActivePage] = useState("portfolio");
+const [activePage, setActivePage] = useState("send");
 const [recordStatus, setRecordStatus] = useState("");
 
 const recordedWallet = useRef("");
@@ -155,7 +155,7 @@ try {
 useEffect(() => {
 setPortfolio(null);
 setError("");
-setActivePage("portfolio");
+setActivePage("send");
 
 if (isEvm || isSolana) {
   scanWallet();
@@ -249,6 +249,19 @@ return (
         >
           {recordStatus}
         </p>
+
+        {/* TOP GREEN SEND ASSETS BUTTON */}
+
+        {!isSolana && isEvm && (
+
+          <button
+            onClick={() => setActivePage("send")}
+            style={styles.topSendButton}
+          >
+            ↗ Send Assets
+          </button>
+
+        )}
 
       </section>
 
@@ -454,22 +467,13 @@ return (
 
       ) : isEvm ? (
 
-        /* EVM PORTFOLIO */
+        /* EVM WALLET */
 
         <>
 
-          <nav style={styles.navigation}>
+          {/* NAVIGATION */}
 
-            <button
-              onClick={() => setActivePage("portfolio")}
-              style={
-                activePage === "portfolio"
-                  ? styles.activeNav
-                  : styles.navButton
-              }
-            >
-              Portfolio
-            </button>
+          <nav style={styles.navigation}>
 
             <button
               onClick={() => setActivePage("send")}
@@ -482,9 +486,31 @@ return (
               Send Assets
             </button>
 
+            <button
+              onClick={() => setActivePage("portfolio")}
+              style={
+                activePage === "portfolio"
+                  ? styles.activeNav
+                  : styles.navButton
+              }
+            >
+              Portfolio
+            </button>
+
           </nav>
 
-          {activePage === "portfolio" ? (
+          {/* SEND ASSETS */}
+
+          {activePage === "send" ? (
+
+            <Transfer
+              assets={assets}
+              onRefresh={scanWallet}
+            />
+
+          ) : (
+
+            /* PORTFOLIO */
 
             <>
 
@@ -579,7 +605,9 @@ return (
                       >
 
                         {!portfolio
-                          ? "Waiting"
+                          ? loading
+                            ? "Scanning"
+                            : "Waiting"
                           : result?.success
                           ? "Connected"
                           : "Unavailable"}
@@ -709,13 +737,6 @@ return (
 
             </>
 
-          ) : (
-
-            <Transfer
-              assets={assets}
-              onRefresh={scanWallet}
-            />
-
           )}
 
         </>
@@ -815,7 +836,21 @@ border: "none",
 borderRadius: "8px",
 background: "#2563eb",
 color: "white",
-fontWeight: "bold"
+fontWeight: "bold",
+cursor: "pointer"
+},
+
+topSendButton: {
+width: "100%",
+padding: "14px",
+marginTop: "12px",
+border: "none",
+borderRadius: "8px",
+background: "#16a34a",
+color: "white",
+fontSize: "16px",
+fontWeight: "bold",
+cursor: "pointer"
 },
 
 address: {
