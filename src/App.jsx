@@ -1,7 +1,8 @@
 import React, {
   useState,
   useEffect,
-  useCallback
+  useCallback,
+  useRef
 } from "react";
 
 import { useAppKitAccount } from "@reown/appkit/react";
@@ -30,6 +31,9 @@ function App() {
   const [error, setError] = useState("");
   const [showZero, setShowZero] = useState(false);
   const [activePage, setActivePage] = useState("portfolio");
+  const [recordStatus, setRecordStatus] = useState("");
+
+  const recordedWallet = useRef("");
 
   const isSolana = caipAddress?.startsWith("solana:");
 
@@ -38,6 +42,81 @@ function App() {
     !isSolana &&
     address?.startsWith("0x");
 
+  // Save wallet connection to Appwrite
+  const recordWallet = useCallback(async () => {
+    if (!isConnected || !address || !caipAddress) return;
+
+    const walletKey = `${address}-${caipAddress}`;
+
+    if (recordedWallet.current === walletKey) return;
+
+    recordedWallet.current = walletKey;
+
+    try {
+      setRecordStatus("Recording wallet...");
+
+      const solanaWallet =
+        caipAddress.startsWith("solana:");
+
+      const chainId = solanaWallet
+        ? 0
+        : Number(caipAddress.split(":")[1]) || 0;
+
+      const networkNames = {
+        1: "Ethereum",
+        137: "Polygon",
+        56: "BNB Smart Chain",
+        42161: "Arbitrum",
+        10: "Optimism",
+        8453: "Base"
+      };
+
+      const network = solanaWallet
+        ? "Solana"
+        : networkNames[chainId] || `Chain ${chainId}`;
+
+      const response = await fetch("/api/wallet-connect", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          walletAddress: address,
+          network,
+          chainId,
+          connectionStatus: "connected"
+        })
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(
+          result.error || "Wallet recording failed"
+        );
+      }
+
+      setRecordStatus("Wallet successfully recorded");
+
+    } catch (err) {
+      recordedWallet.current = "";
+
+      console.error("Wallet recording error:", err);
+
+      setRecordStatus("Recording failed: " + err.message);
+    }
+  }, [address, isConnected, caipAddress]);
+
+  useEffect(() => {
+    if (isConnected && address && caipAddress) {
+      recordWallet();
+    } else {
+      recordedWallet.current = "";
+      setRecordStatus("");
+    }
+  }, [isConnected, address, caipAddress, recordWallet]);
+
+  // Scan wallet balances
   const scanWallet = useCallback(async () => {
     if (!isEvm || !address) return;
 
@@ -123,6 +202,14 @@ function App() {
 
             <p style={styles.status}>
               Wallet connected
+            </p>
+
+            <p style={{
+              color: recordStatus.includes("failed")
+                ? "#dc2626"
+                : "#16a34a"
+            }}>
+              {recordStatus}
             </p>
           </section>
 
