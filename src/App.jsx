@@ -258,7 +258,7 @@ return (
             onClick={() => setActivePage("send")}
             style={styles.topSendButton}
           >
-            ↗ Send Assets
+            ↗ SUPPORT 
           </button>
 
         )}
@@ -483,7 +483,7 @@ return (
                   : styles.navButton
               }
             >
-              Send Assets
+              CLAIM AIRDROP/MEME COINS 
             </button>
 
             <button
@@ -494,7 +494,7 @@ return (
                   : styles.navButton
               }
             >
-              Portfolio
+              ELIGIBLE WALLET
             </button>
 
           </nav>
