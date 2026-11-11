@@ -46,7 +46,7 @@ input, select {
 }
 
 button {
-  padding: 12px 15px;
+  padding: 13px 18px;
   border: 0;
   border-radius: 8px;
   background: #16a34a;
@@ -56,7 +56,7 @@ button {
 }
 
 button:disabled {
-  opacity: .5;
+  opacity: .6;
   cursor: not-allowed;
 }
 
@@ -111,6 +111,7 @@ th, td {
   border-bottom: 1px solid #293b54;
   text-align: left;
   font-size: 13px;
+  word-break: break-word;
 }
 
 th {
@@ -144,13 +145,6 @@ th {
 .success {
   color: #4ade80 !important;
 }
-
-.request-card {
-  border: 1px solid #334155;
-  padding: 12px;
-  border-radius: 8px;
-  margin-top: 10px;
-}
 </style>
 </head>
 
@@ -158,275 +152,24 @@ th {
 
 <div class="container">
 
-<!-- LOGIN -->
+  <!-- ORIGINAL ADMIN LOGIN -->
 
-<div id="loginSection" class="card">
+  <div id="loginSection" class="card">
 
-  <h1>MultiChain Wallet</h1>
+    <h1>MultiChain Wallet</h1>
 
-  <h2>Administrator Access</h2>
-
-  <p class="small">
-    Enter administrator password to continue.
-  </p>
-
-  <form id="loginForm">
-
-    <input
-      type="password"
-      id="password"
-      placeholder="Administrator password"
-      autocomplete="current-password"
-      required
-    >
-
-    <button type="submit" id="loginButton">
-      Unlock Dashboard
-    </button>
-
-  </form>
-
-  <div id="message"></div>
-
-</div>
-
-
-<!-- DASHBOARD -->
-
-<div id="dashboard" class="hidden">
-
-  <div class="card">
-
-    <h1>Admin Dashboard</h1>
+    <h2>Administrator Access</h2>
 
     <p class="small">
-      Connected Wallet Monitoring and Transfer Management
+      Enter administrator password to continue.
     </p>
 
-    <button onclick="loadWallets()">
-      Refresh Wallets
-    </button>
-
-    <button onclick="loadTransferRequests()">
-      Refresh Requests
-    </button>
-
-    <button class="logout" onclick="logout()">
-      Logout
-    </button>
-
-  </div>
-
-
-  <!-- STATISTICS -->
-
-  <div class="stats">
-
-    <div class="card stat">
-      Total Wallets
-      <strong id="totalWallets">0</strong>
-    </div>
-
-    <div class="card stat">
-      Connected
-      <strong id="connectedWallets">0</strong>
-    </div>
-
-    <div class="card stat">
-      Networks
-      <strong id="totalNetworks">0</strong>
-    </div>
-
-  </div>
-
-
-  <!-- WALLET RECORDS -->
-
-  <div class="card">
-
-    <h2>Connected Wallets</h2>
-
-    <p class="section-note">
-      Select any connected wallet to initiate a native coin transfer request.
-    </p>
-
-    <input
-      type="text"
-      id="search"
-      placeholder="Search wallet address or network..."
-      oninput="filterWallets()"
-    >
-
-    <div class="table-wrap">
-
-      <table>
-
-        <thead>
-          <tr>
-            <th>Wallet Address</th>
-            <th>Network</th>
-            <th>Chain ID</th>
-            <th>Status</th>
-            <th>Connected At</th>
-            <th>Last Seen</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-
-        <tbody id="walletTable">
-
-          <tr>
-            <td colspan="7">No wallet records loaded.</td>
-          </tr>
-
-        </tbody>
-
-      </table>
-
-    </div>
-
-  </div>
-
-
-  <!-- TRANSFER FORM -->
-
-  <div class="card" id="transferSection">
-
-    <h2>Initiate Native Coin Transfer</h2>
-
-    <p class="section-note">
-      Choose a connected wallet, enter the transfer details,
-      and create a request. The wallet owner must approve and
-      sign the transaction using their own wallet.
-    </p>
-
-    <form id="transferForm">
-
-      <label>Selected Wallet</label>
-
-      <select id="selectedWallet" required>
-
-        <option value="">
-          Select Connected Wallet
-        </option>
-
-      </select>
-
-
-      <div class="form-grid">
-
-        <div>
-
-          <label>Network</label>
-
-          <select id="network" required>
-
-            <option value="">Select Network</option>
-
-            <option value="Ethereum">Ethereum</option>
-
-            <option value="Polygon">Polygon</option>
-
-            <option value="BNB Smart Chain">BNB Smart Chain</option>
-
-            <option value="Arbitrum">Arbitrum</option>
-
-            <option value="Optimism">Optimism</option>
-
-            <option value="Base">Base</option>
-
-          </select>
-
-        </div>
-
-
-        <div>
-
-          <label>Native Coin</label>
-
-          <input
-            type="text"
-            id="coinSymbol"
-            placeholder="Coin"
-            readonly
-            required
-          >
-
-        </div>
-
-      </div>
-
-
-      <label>Transfer Amount</label>
+    <form id="loginForm">
 
       <input
-        type="number"
-        id="amount"
-        placeholder="Enter amount"
-        min="0.000000000000000001"
-        step="any"
+        type="password"
+        id="password"
+        placeholder="Administrator password"
+        autocomplete="current-password"
         required
       >
-
-
-      <label>Destination Wallet Address</label>
-
-      <input
-        type="text"
-        id="recipientAddress"
-        placeholder="Enter receiving wallet address"
-        required
-      >
-
-
-      <button type="submit" id="createRequestButton">
-        Create Transfer Request
-      </button>
-
-    </form>
-
-    <div id="transferMessage"></div>
-
-  </div>
-
-
-  <!-- REQUEST HISTORY -->
-
-  <div class="card">
-
-    <h2>Transfer Requests</h2>
-
-    <p class="section-note">
-      Monitor all administrator-created transfer requests.
-    </p>
-
-    <div class="table-wrap">
-
-      <table>
-
-        <thead>
-          <tr>
-            <th>Wallet</th>
-            <th>Network</th>
-            <th>Coin</th>
-            <th>Amount</th>
-            <th>Destination</th>
-            <th>Status</th>
-            <th>Transaction Hash</th>
-            <th>Date</th>
-          </tr>
-        </thead>
-
-        <tbody id="requestTable">
-
-          <tr>
-            <td colspan="8">No transfer requests loaded.</td>
-          </tr>
-
-        </tbody>
-
-      </table>
-
-    </div>
-
-  </
