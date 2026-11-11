@@ -1,457 +1,709 @@
 import React, {
-  useState,
-  useEffect,
-  useCallback,
-  useRef
+useState,
+useEffect,
+useCallback,
+useRef
 } from "react";
 
 import { useAppKitAccount } from "@reown/appkit/react";
 
-import { getWalletPortfolio } from "./services/balanceService.js";
+import {
+getWalletPortfolio,
+getSolanaWalletPortfolio
+} from "./services/balanceService.js";
+
 import Transfer from "./components/Transfer.jsx";
 
 const NETWORKS = [
-  "Ethereum",
-  "Polygon",
-  "BNB Smart Chain",
-  "Arbitrum",
-  "Optimism",
-  "Base"
+"Ethereum",
+"Polygon",
+"BNB Smart Chain",
+"Arbitrum",
+"Optimism",
+"Base"
 ];
 
 function App() {
-  const {
-    address,
-    isConnected,
-    caipAddress
-  } = useAppKitAccount();
+const {
+address,
+isConnected,
+caipAddress
+} = useAppKitAccount();
 
-  const [portfolio, setPortfolio] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [showZero, setShowZero] = useState(false);
-  const [activePage, setActivePage] = useState("portfolio");
-  const [recordStatus, setRecordStatus] = useState("");
+const [portfolio, setPortfolio] = useState(null);
+const [loading, setLoading] = useState(false);
+const [error, setError] = useState("");
+const [showZero, setShowZero] = useState(false);
+const [activePage, setActivePage] = useState("portfolio");
+const [recordStatus, setRecordStatus] = useState("");
 
-  const recordedWallet = useRef("");
+const recordedWallet = useRef("");
 
-  const isSolana = caipAddress?.startsWith("solana:");
+// Detect wallet type
+const isSolana = caipAddress?.startsWith("solana:");
 
-  const isEvm =
-    isConnected &&
-    !isSolana &&
-    address?.startsWith("0x");
+const isEvm =
+isConnected &&
+!isSolana &&
+address?.startsWith("0x");
 
-  // Save wallet connection to Appwrite
-  const recordWallet = useCallback(async () => {
-    if (!isConnected || !address || !caipAddress) return;
+// Save wallet connection to Appwrite
+const recordWallet = useCallback(async () => {
+if (!isConnected || !address || !caipAddress) return;
 
-    const walletKey = `${address}-${caipAddress}`;
+const walletKey = `${address}-${caipAddress}`;
 
-    if (recordedWallet.current === walletKey) return;
+if (recordedWallet.current === walletKey) return;
 
-    recordedWallet.current = walletKey;
+recordedWallet.current = walletKey;
 
-    try {
-      setRecordStatus("Recording wallet...");
+try {
+  setRecordStatus("Recording wallet...");
 
-      const solanaWallet =
-        caipAddress.startsWith("solana:");
+  const solanaWallet =
+    caipAddress.startsWith("solana:");
 
-      const chainId = solanaWallet
-        ? 0
-        : Number(caipAddress.split(":")[1]) || 0;
+  const chainId = solanaWallet
+    ? 0
+    : Number(caipAddress.split(":")[1]) || 0;
 
-      const networkNames = {
-        1: "Ethereum",
-        137: "Polygon",
-        56: "BNB Smart Chain",
-        42161: "Arbitrum",
-        10: "Optimism",
-        8453: "Base"
-      };
-
-      const network = solanaWallet
-        ? "Solana"
-        : networkNames[chainId] || `Chain ${chainId}`;
-
-      const response = await fetch("/api/wallet-connect", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          walletAddress: address,
-          network,
-          chainId,
-          connectionStatus: "connected"
-        })
-      });
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(
-          result.error || "Wallet recording failed"
-        );
-      }
-
-      setRecordStatus("Wallet successfully recorded");
-
-    } catch (err) {
-      recordedWallet.current = "";
-
-      console.error("Wallet recording error:", err);
-
-      setRecordStatus("Recording failed: " + err.message);
-    }
-  }, [address, isConnected, caipAddress]);
-
-  useEffect(() => {
-    if (isConnected && address && caipAddress) {
-      recordWallet();
-    } else {
-      recordedWallet.current = "";
-      setRecordStatus("");
-    }
-  }, [isConnected, address, caipAddress, recordWallet]);
-
-  // Scan wallet balances
-  const scanWallet = useCallback(async () => {
-    if (!isEvm || !address) return;
-
-    setLoading(true);
-    setError("");
-
-    try {
-      const result = await getWalletPortfolio(address);
-      setPortfolio(result);
-    } catch (err) {
-      setError(err.message || "Unable to scan wallet");
-    } finally {
-      setLoading(false);
-    }
-  }, [address, isEvm]);
-
-  useEffect(() => {
-    setPortfolio(null);
-    setError("");
-    setActivePage("portfolio");
-
-    if (isEvm) {
-      scanWallet();
-    }
-  }, [address, isEvm, scanWallet]);
-
-  const assets = portfolio?.assets || [];
-
-  const visibleAssets = showZero
-    ? assets
-    : assets.filter(asset => Number(asset.balance) > 0);
-
-  const networkStatus = portfolio?.networks || [];
-
-  const formatBalance = value => {
-    const number = Number(value);
-
-    if (!Number.isFinite(number)) return value;
-
-    return number.toLocaleString("en-US", {
-      maximumFractionDigits: 8
-    });
+  const networkNames = {
+    1: "Ethereum",
+    137: "Polygon",
+    56: "BNB Smart Chain",
+    42161: "Arbitrum",
+    10: "Optimism",
+    8453: "Base"
   };
 
-  return (
-    <div style={styles.page}>
+  const network = solanaWallet
+    ? "Solana"
+    : networkNames[chainId] || `Chain ${chainId}`;
 
-      <header style={styles.header}>
-        <h2 style={styles.logo}>
-          MultiChain Wallet
-        </h2>
+  const response = await fetch("/api/wallet-connect", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      walletAddress: address,
+      network,
+      chainId,
+      connectionStatus: "connected"
+    })
+  });
 
-        <appkit-button />
-      </header>
+  const result = await response.json();
 
-      {!isConnected ? (
+  if (!response.ok || !result.success) {
+    throw new Error(
+      result.error || "Wallet recording failed"
+    );
+  }
 
-        <section style={styles.center}>
-          <h1>Welcome to MultiChain Wallet</h1>
+  setRecordStatus("Wallet successfully recorded");
 
-          <p>
-            Connect your wallet to discover
-            cryptocurrency balances across multiple networks.
-          </p>
+} catch (err) {
+  recordedWallet.current = "";
 
-          <appkit-button />
-        </section>
+  console.error("Wallet recording error:", err);
 
-      ) : (
+  setRecordStatus("Recording failed: " + err.message);
+}
 
-        <main style={styles.container}>
+}, [address, isConnected, caipAddress]);
+
+useEffect(() => {
+if (isConnected && address && caipAddress) {
+recordWallet();
+} else {
+recordedWallet.current = "";
+setRecordStatus("");
+}
+}, [isConnected, address, caipAddress, recordWallet]);
+
+// Scan EVM and Solana wallet balances
+const scanWallet = useCallback(async () => {
+if ((!isEvm && !isSolana) || !address) return;
+
+setLoading(true);
+setError("");
+
+try {
+  const result = isSolana
+    ? await getSolanaWalletPortfolio(address)
+    : await getWalletPortfolio(address);
+
+  setPortfolio(result);
+
+} catch (err) {
+  console.error("Wallet scanning error:", err);
+
+  setPortfolio(null);
+
+  setError(
+    err.message || "Unable to scan wallet"
+  );
+
+} finally {
+  setLoading(false);
+}
+
+}, [address, isEvm, isSolana]);
+
+// Automatically scan when wallet connects or changes
+useEffect(() => {
+setPortfolio(null);
+setError("");
+setActivePage("portfolio");
+
+if (isEvm || isSolana) {
+  scanWallet();
+}
+
+}, [address, isEvm, isSolana, scanWallet]);
+
+// Portfolio assets
+const assets = portfolio?.assets || [];
+
+const visibleAssets = showZero
+? assets
+: assets.filter(
+asset => Number(asset.balance) > 0
+);
+
+const networkStatus = portfolio?.networks || [];
+
+// Format balances
+const formatBalance = value => {
+const number = Number(value);
+
+if (!Number.isFinite(number)) return value;
+
+return number.toLocaleString("en-US", {
+  maximumFractionDigits: 8
+});
+
+};
+
+return (
+<div style={styles.page}>
+
+  {/* HEADER */}
+
+  <header style={styles.header}>
+
+    <h2 style={styles.logo}>
+      MultiChain Wallet
+    </h2>
+
+    <appkit-button />
+
+  </header>
+
+  {!isConnected ? (
+
+    /* DISCONNECTED */
+
+    <section style={styles.center}>
+
+      <h1>Welcome to MultiChain Wallet</h1>
+
+      <p>
+        Connect your wallet to discover
+        cryptocurrency balances across multiple networks.
+      </p>
+
+      <appkit-button />
+
+    </section>
+
+  ) : (
+
+    <main style={styles.container}>
+
+      {/* CONNECTED WALLET */}
+
+      <section style={styles.card}>
+
+        <h3>Connected Wallet</h3>
+
+        <p style={styles.address}>
+          {address}
+        </p>
+
+        <p>
+          Wallet type: {isSolana ? "Solana" : "EVM"}
+        </p>
+
+        <p style={styles.status}>
+          Wallet connected
+        </p>
+
+        <p
+          style={{
+            color: recordStatus.includes("failed")
+              ? "#dc2626"
+              : "#16a34a"
+          }}
+        >
+          {recordStatus}
+        </p>
+
+      </section>
+
+      {isSolana ? (
+
+        /* SOLANA PORTFOLIO */
+
+        <>
 
           <section style={styles.card}>
-            <h3>Connected Wallet</h3>
 
-            <p style={styles.address}>
-              {address}
-            </p>
+            <div style={styles.sectionHeader}>
 
-            <p>
-              Wallet type: {isSolana ? "Solana" : "EVM"}
-            </p>
+              <h2>Solana Portfolio</h2>
 
-            <p style={styles.status}>
-              Wallet connected
-            </p>
+              <button
+                onClick={scanWallet}
+                disabled={loading}
+                style={styles.refreshButton}
+              >
+                {loading ? "Scanning..." : "↻ Refresh"}
+              </button>
 
-            <p style={{
-              color: recordStatus.includes("failed")
-                ? "#dc2626"
-                : "#16a34a"
-            }}>
-              {recordStatus}
-            </p>
+            </div>
+
+            {loading && (
+              <p>
+                Scanning your Solana wallet...
+              </p>
+            )}
+
+            {error && (
+              <p style={styles.error}>
+                {error}
+              </p>
+            )}
+
+            {portfolio && (
+
+              <>
+
+                <h1 style={styles.assetCount}>
+                  {visibleAssets.length}
+                </h1>
+
+                <p>Detected Solana assets</p>
+
+                <p style={styles.smallText}>
+                  Last updated:{" "}
+                  {new Date(
+                    portfolio.updatedAt
+                  ).toLocaleString()}
+                </p>
+
+              </>
+
+            )}
+
           </section>
 
-          {isSolana ? (
+          {/* SOLANA NETWORK STATUS */}
 
-            <section style={styles.card}>
-              <h2>Solana Wallet</h2>
+          <section style={styles.card}>
+
+            <h2>Network Status</h2>
+
+            <div style={styles.networkRow}>
+
+              <span>Solana Mainnet</span>
+
+              <span
+                style={{
+                  color: !portfolio
+                    ? "#999"
+                    : networkStatus.some(
+                        item => item.success
+                      )
+                    ? "#16a34a"
+                    : "#dc2626"
+                }}
+              >
+                {!portfolio
+                  ? loading
+                    ? "Scanning"
+                    : "Waiting"
+                  : networkStatus.some(
+                      item => item.success
+                    )
+                  ? "Connected"
+                  : "Unavailable"}
+              </span>
+
+            </div>
+
+          </section>
+
+          {/* SOLANA ASSETS */}
+
+          <section style={styles.card}>
+
+            <div style={styles.sectionHeader}>
+
+              <h2>SOL & SPL Tokens</h2>
+
+              <label style={styles.toggle}>
+
+                <input
+                  type="checkbox"
+                  checked={showZero}
+                  onChange={event =>
+                    setShowZero(event.target.checked)
+                  }
+                />
+
+                Show zero balances
+
+              </label>
+
+            </div>
+
+            {visibleAssets.length === 0 && !loading ? (
 
               <p>
-                Solana is connected successfully.
+                No Solana assets found.
               </p>
 
-              <p>
-                SOL and SPL token scanning and transfers
-                are the next integration stage.
-              </p>
-            </section>
+            ) : (
 
-          ) : isEvm ? (
+              visibleAssets.map((asset, index) => (
+
+                <div
+                  key={`${asset.contractAddress || "SOL"}-${index}`}
+                  style={styles.assetRow}
+                >
+
+                  <div style={styles.assetInfo}>
+
+                    {asset.logo && (
+
+                      <img
+                        src={asset.logo}
+                        alt=""
+                        style={styles.tokenLogo}
+                      />
+
+                    )}
+
+                    <div>
+
+                      <strong>{asset.name}</strong>
+
+                      <p style={styles.smallText}>
+                        {asset.symbol}
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                  <div style={styles.assetBalance}>
+
+                    <strong>
+                      {formatBalance(asset.balance)}
+                    </strong>
+
+                    <p style={styles.smallText}>
+                      {asset.type === "native"
+                        ? "Native SOL"
+                        : "SPL Token"}
+                    </p>
+
+                  </div>
+
+                  <div style={styles.assetNetwork}>
+
+                    <p>Solana</p>
+
+                    {asset.contractAddress && (
+
+                      <small style={styles.smallText}>
+                        {asset.contractAddress.slice(0, 8)}
+                        ...
+                        {asset.contractAddress.slice(-6)}
+                      </small>
+
+                    )}
+
+                  </div>
+
+                </div>
+
+              ))
+
+            )}
+
+          </section>
+
+          <p style={styles.warning}>
+            Solana transfers are not yet enabled.
+          </p>
+
+        </>
+
+      ) : isEvm ? (
+
+        /* EVM PORTFOLIO */
+
+        <>
+
+          <nav style={styles.navigation}>
+
+            <button
+              onClick={() => setActivePage("portfolio")}
+              style={
+                activePage === "portfolio"
+                  ? styles.activeNav
+                  : styles.navButton
+              }
+            >
+              Portfolio
+            </button>
+
+            <button
+              onClick={() => setActivePage("send")}
+              style={
+                activePage === "send"
+                  ? styles.activeNav
+                  : styles.navButton
+              }
+            >
+              Send Assets
+            </button>
+
+          </nav>
+
+          {activePage === "portfolio" ? (
 
             <>
 
-              <nav style={styles.navigation}>
+              {/* PORTFOLIO SUMMARY */}
 
-                <button
-                  onClick={() => setActivePage("portfolio")}
-                  style={
-                    activePage === "portfolio"
-                      ? styles.activeNav
-                      : styles.navButton
-                  }
-                >
-                  Portfolio
-                </button>
+              <section style={styles.card}>
 
-                <button
-                  onClick={() => setActivePage("send")}
-                  style={
-                    activePage === "send"
-                      ? styles.activeNav
-                      : styles.navButton
-                  }
-                >
-                  Send Assets
-                </button>
+                <div style={styles.sectionHeader}>
 
-              </nav>
+                  <h2>Your Portfolio</h2>
 
-              {activePage === "portfolio" ? (
+                  <button
+                    onClick={scanWallet}
+                    disabled={loading}
+                    style={styles.refreshButton}
+                  >
+                    {loading ? "Scanning..." : "↻ Refresh"}
+                  </button>
 
-                <>
+                </div>
 
-                  <section style={styles.card}>
+                {loading && (
 
-                    <div style={styles.sectionHeader}>
-                      <h2>Your Portfolio</h2>
+                  <p>
+                    Scanning your wallet across six networks...
+                  </p>
 
-                      <button
-                        onClick={scanWallet}
-                        disabled={loading}
-                        style={styles.refreshButton}
+                )}
+
+                {error && (
+
+                  <p style={styles.error}>
+                    {error}
+                  </p>
+
+                )}
+
+                {portfolio && (
+
+                  <>
+
+                    <h1 style={styles.assetCount}>
+                      {visibleAssets.length}
+                    </h1>
+
+                    <p>Detected assets</p>
+
+                    <p style={styles.smallText}>
+                      Last updated:{" "}
+                      {new Date(
+                        portfolio.updatedAt
+                      ).toLocaleString()}
+                    </p>
+
+                  </>
+
+                )}
+
+              </section>
+
+              {/* EVM NETWORK STATUS */}
+
+              <section style={styles.card}>
+
+                <h2>Network Status</h2>
+
+                {NETWORKS.map(network => {
+
+                  const result = networkStatus.find(
+                    item =>
+                      item.name === network ||
+                      item.network === network
+                  );
+
+                  return (
+
+                    <div
+                      key={network}
+                      style={styles.networkRow}
+                    >
+
+                      <span>{network}</span>
+
+                      <span
+                        style={{
+                          color: !portfolio
+                            ? "#999"
+                            : result?.success
+                            ? "#16a34a"
+                            : "#dc2626"
+                        }}
                       >
-                        {loading ? "Scanning..." : "↻ Refresh"}
-                      </button>
+
+                        {!portfolio
+                          ? "Waiting"
+                          : result?.success
+                          ? "Connected"
+                          : "Unavailable"}
+
+                      </span>
+
                     </div>
 
-                    {loading && (
-                      <p>
-                        Scanning your wallet across six networks...
-                      </p>
-                    )}
+                  );
 
-                    {error && (
-                      <p style={styles.error}>
-                        {error}
-                      </p>
-                    )}
+                })}
 
-                    {portfolio && (
-                      <>
-                        <h1 style={styles.assetCount}>
-                          {visibleAssets.length}
-                        </h1>
+              </section>
 
-                        <p>Detected assets</p>
+              {/* EVM ASSETS */}
+
+              <section style={styles.card}>
+
+                <div style={styles.sectionHeader}>
+
+                  <h2>Your Coins & Tokens</h2>
+
+                  <label style={styles.toggle}>
+
+                    <input
+                      type="checkbox"
+                      checked={showZero}
+                      onChange={event =>
+                        setShowZero(event.target.checked)
+                      }
+                    />
+
+                    Show zero balances
+
+                  </label>
+
+                </div>
+
+                {visibleAssets.length === 0 && !loading ? (
+
+                  <p>
+                    No assets found. Refresh to scan again.
+                  </p>
+
+                ) : (
+
+                  visibleAssets.map((asset, index) => (
+
+                    <div
+                      key={`${asset.chainId}-${asset.contractAddress || "native"}-${index}`}
+                      style={styles.assetRow}
+                    >
+
+                      <div style={styles.assetInfo}>
+
+                        {asset.logo && (
+
+                          <img
+                            src={asset.logo}
+                            alt=""
+                            style={styles.tokenLogo}
+                          />
+
+                        )}
+
+                        <div>
+
+                          <strong>{asset.name}</strong>
+
+                          <p style={styles.smallText}>
+                            {asset.symbol}
+                          </p>
+
+                        </div>
+
+                      </div>
+
+                      <div style={styles.assetBalance}>
+
+                        <strong>
+                          {formatBalance(asset.balance)}
+                        </strong>
 
                         <p style={styles.smallText}>
-                          Last updated:{" "}
-                          {new Date(
-                            portfolio.updatedAt
-                          ).toLocaleString()}
+                          {asset.type === "native"
+                            ? "Native coin"
+                            : "Token"}
                         </p>
-                      </>
-                    )}
 
-                  </section>
+                      </div>
 
-                  <section style={styles.card}>
+                      <div style={styles.assetNetwork}>
 
-                    <h2>Network Status</h2>
+                        <p>
+                          {asset.network ||
+                            `Chain ${asset.chainId}`}
+                        </p>
 
-                    {NETWORKS.map(network => {
+                        {asset.contractAddress && (
 
-                      const result = networkStatus.find(
-                        item =>
-                          item.name === network ||
-                          item.network === network
-                      );
+                          <small style={styles.smallText}>
+                            {asset.contractAddress.slice(0, 8)}
+                            ...
+                            {asset.contractAddress.slice(-6)}
+                          </small>
 
-                      return (
-                        <div
-                          key={network}
-                          style={styles.networkRow}
-                        >
+                        )}
 
-                          <span>{network}</span>
+                      </div>
 
-                          <span
-                            style={{
-                              color: !portfolio
-                                ? "#999"
-                                : result?.success
-                                ? "#16a34a"
-                                : "#dc2626"
-                            }}
-                          >
-                            {!portfolio
-                              ? "Waiting"
-                              : result?.success
-                              ? "Connected"
-                              : "Unavailable"}
-                          </span>
-
-                        </div>
-                      );
-                    })}
-
-                  </section>
-
-                  <section style={styles.card}>
-
-                    <div style={styles.sectionHeader}>
-                      <h2>Your Coins & Tokens</h2>
-
-                      <label style={styles.toggle}>
-                        <input
-                          type="checkbox"
-                          checked={showZero}
-                          onChange={event =>
-                            setShowZero(event.target.checked)
-                          }
-                        />
-
-                        Show zero balances
-                      </label>
                     </div>
 
-                    {visibleAssets.length === 0 && !loading ? (
+                  ))
 
-                      <p>
-                        No assets found. Refresh to scan again.
-                      </p>
+                )}
 
-                    ) : (
+              </section>
 
-                      visibleAssets.map((asset, index) => (
+              {portfolio?.failedNetworkCount > 0 && (
 
-                        <div
-                          key={`${asset.chainId}-${asset.contractAddress || "native"}-${index}`}
-                          style={styles.assetRow}
-                        >
-
-                          <div style={styles.assetInfo}>
-
-                            {asset.logo && (
-                              <img
-                                src={asset.logo}
-                                alt=""
-                                style={styles.tokenLogo}
-                              />
-                            )}
-
-                            <div>
-                              <strong>{asset.name}</strong>
-
-                              <p style={styles.smallText}>
-                                {asset.symbol}
-                              </p>
-                            </div>
-
-                          </div>
-
-                          <div style={styles.assetBalance}>
-                            <strong>
-                              {formatBalance(asset.balance)}
-                            </strong>
-
-                            <p style={styles.smallText}>
-                              {asset.type === "native"
-                                ? "Native coin"
-                                : "Token"}
-                            </p>
-                          </div>
-
-                          <div style={styles.assetNetwork}>
-                            <p>
-                              {asset.network ||
-                                `Chain ${asset.chainId}`}
-                            </p>
-
-                            {asset.contractAddress && (
-                              <small style={styles.smallText}>
-                                {asset.contractAddress.slice(0, 8)}
-                                ...
-                                {asset.contractAddress.slice(-6)}
-                              </small>
-                            )}
-                          </div>
-
-                        </div>
-
-                      ))
-
-                    )}
-
-                  </section>
-
-                  {portfolio?.failedNetworkCount > 0 && (
-                    <p style={styles.warning}>
-                      Some networks could not be scanned.
-                      Their balances may be missing.
-                    </p>
-                  )}
-
-                </>
-
-              ) : (
-
-                <Transfer
-                  assets={assets}
-                  onRefresh={scanWallet}
-                />
+                <p style={styles.warning}>
+                  Some networks could not be scanned.
+                  Their balances may be missing.
+                </p>
 
               )}
 
@@ -459,186 +711,208 @@ function App() {
 
           ) : (
 
-            <p>Unsupported wallet connection.</p>
+            <Transfer
+              assets={assets}
+              onRefresh={scanWallet}
+            />
 
           )}
 
-        </main>
+        </>
+
+      ) : (
+
+        <section style={styles.card}>
+
+          <h2>Unsupported wallet connection</h2>
+
+          <p>
+            Please connect a supported EVM or Solana wallet.
+          </p>
+
+        </section>
 
       )}
 
-      <footer style={styles.footer}>
-        MultiChain Wallet © 2026
-      </footer>
+    </main>
 
-    </div>
-  );
+  )}
+
+  <footer style={styles.footer}>
+    MultiChain Wallet © 2026
+  </footer>
+
+</div>
+
+);
 }
 
 const styles = {
-  page: {
-    minHeight: "100vh",
-    background: "#f3f4f6",
-    color: "#111827",
-    fontFamily: "Arial, sans-serif"
-  },
 
-  header: {
-    background: "#111827",
-    color: "white",
-    padding: "18px 5%",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center"
-  },
+page: {
+minHeight: "100vh",
+background: "#f3f4f6",
+color: "#111827",
+fontFamily: "Arial, sans-serif"
+},
 
-  logo: {
-    margin: 0
-  },
+header: {
+background: "#111827",
+color: "white",
+padding: "18px 5%",
+display: "flex",
+justifyContent: "space-between",
+alignItems: "center"
+},
 
-  container: {
-    maxWidth: "950px",
-    margin: "auto",
-    padding: "20px"
-  },
+logo: {
+margin: 0
+},
 
-  center: {
-    minHeight: "70vh",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    textAlign: "center",
-    padding: "20px"
-  },
+container: {
+maxWidth: "950px",
+margin: "auto",
+padding: "20px"
+},
 
-  card: {
-    background: "white",
-    padding: "22px",
-    borderRadius: "14px",
-    marginBottom: "18px",
-    boxShadow: "0 2px 10px rgba(0,0,0,0.05)"
-  },
+center: {
+minHeight: "70vh",
+display: "flex",
+flexDirection: "column",
+justifyContent: "center",
+alignItems: "center",
+textAlign: "center",
+padding: "20px"
+},
 
-  navigation: {
-    display: "flex",
-    gap: "10px",
-    marginBottom: "18px"
-  },
+card: {
+background: "white",
+padding: "22px",
+borderRadius: "14px",
+marginBottom: "18px",
+boxShadow: "0 2px 10px rgba(0,0,0,0.05)"
+},
 
-  navButton: {
-    flex: 1,
-    padding: "13px",
-    border: "1px solid #ddd",
-    borderRadius: "8px",
-    background: "white",
-    cursor: "pointer"
-  },
+navigation: {
+display: "flex",
+gap: "10px",
+marginBottom: "18px"
+},
 
-  activeNav: {
-    flex: 1,
-    padding: "13px",
-    border: "none",
-    borderRadius: "8px",
-    background: "#2563eb",
-    color: "white",
-    fontWeight: "bold"
-  },
+navButton: {
+flex: 1,
+padding: "13px",
+border: "1px solid #ddd",
+borderRadius: "8px",
+background: "white",
+cursor: "pointer"
+},
 
-  address: {
-    wordBreak: "break-all",
-    color: "#2563eb"
-  },
+activeNav: {
+flex: 1,
+padding: "13px",
+border: "none",
+borderRadius: "8px",
+background: "#2563eb",
+color: "white",
+fontWeight: "bold"
+},
 
-  status: {
-    color: "#16a34a"
-  },
+address: {
+wordBreak: "break-all",
+color: "#2563eb"
+},
 
-  sectionHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "12px",
-    flexWrap: "wrap"
-  },
+status: {
+color: "#16a34a"
+},
 
-  refreshButton: {
-    padding: "10px 16px",
-    border: "none",
-    borderRadius: "8px",
-    background: "#2563eb",
-    color: "white",
-    cursor: "pointer"
-  },
+sectionHeader: {
+display: "flex",
+justifyContent: "space-between",
+alignItems: "center",
+gap: "12px",
+flexWrap: "wrap"
+},
 
-  assetCount: {
-    fontSize: "40px",
-    marginBottom: "0"
-  },
+refreshButton: {
+padding: "10px 16px",
+border: "none",
+borderRadius: "8px",
+background: "#2563eb",
+color: "white",
+cursor: "pointer"
+},
 
-  networkRow: {
-    display: "flex",
-    justifyContent: "space-between",
-    padding: "13px 0",
-    borderBottom: "1px solid #eee"
-  },
+assetCount: {
+fontSize: "40px",
+marginBottom: "0"
+},
 
-  assetRow: {
-    padding: "16px 0",
-    borderBottom: "1px solid #eee",
-    display: "flex",
-    flexWrap: "wrap",
-    justifyContent: "space-between",
-    alignItems: "center",
-    gap: "12px"
-  },
+networkRow: {
+display: "flex",
+justifyContent: "space-between",
+padding: "13px 0",
+borderBottom: "1px solid #eee"
+},
 
-  assetInfo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px"
-  },
+assetRow: {
+padding: "16px 0",
+borderBottom: "1px solid #eee",
+display: "flex",
+flexWrap: "wrap",
+justifyContent: "space-between",
+alignItems: "center",
+gap: "12px"
+},
 
-  tokenLogo: {
-    width: "35px",
-    height: "35px",
-    borderRadius: "50%"
-  },
+assetInfo: {
+display: "flex",
+alignItems: "center",
+gap: "10px"
+},
 
-  assetBalance: {
-    textAlign: "right"
-  },
+tokenLogo: {
+width: "35px",
+height: "35px",
+borderRadius: "50%"
+},
 
-  assetNetwork: {
-    width: "100%",
-    fontSize: "12px",
-    color: "#6b7280"
-  },
+assetBalance: {
+textAlign: "right"
+},
 
-  smallText: {
-    color: "#6b7280",
-    fontSize: "12px",
-    margin: "5px 0"
-  },
+assetNetwork: {
+width: "100%",
+fontSize: "12px",
+color: "#6b7280"
+},
 
-  toggle: {
-    fontSize: "13px"
-  },
+smallText: {
+color: "#6b7280",
+fontSize: "12px",
+margin: "5px 0"
+},
 
-  error: {
-    color: "#dc2626"
-  },
+toggle: {
+fontSize: "13px"
+},
 
-  warning: {
-    color: "#b45309",
-    textAlign: "center"
-  },
+error: {
+color: "#dc2626"
+},
 
-  footer: {
-    textAlign: "center",
-    padding: "25px",
-    color: "#6b7280"
-  }
+warning: {
+color: "#b45309",
+textAlign: "center"
+},
+
+footer: {
+textAlign: "center",
+padding: "25px",
+color: "#6b7280"
+}
+
 };
 
 export default App;
