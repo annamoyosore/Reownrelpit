@@ -117,21 +117,21 @@ th {
   color: #9ca3af;
   font-size: 12px;
 }
-</style></head><body><div class="container">  <!-- ADMIN LOGIN -->  <div id="loginSection" class="card"><h1>MultiChain Wallet</h1>
+</style></head><body><div class="container">  <!-- PASSWORD LOGIN -->  <div id="loginSection" class="card"><h1>MultiChain Wallet</h1>
 
 <h2>Administrator Access</h2>
 
 <p class="small">
-  Enter your authorised administrator Gmail to continue.
+  Enter administrator password to continue.
 </p>
 
 <form id="loginForm">
 
   <input
-    type="email"
-    id="email"
-    placeholder="Administrator Gmail"
-    autocomplete="email"
+    type="password"
+    id="password"
+    placeholder="Administrator password"
+    autocomplete="current-password"
     required
   >
 
@@ -230,12 +230,34 @@ th {
 
   </div></div><script>
 
+// API ENDPOINT
+
 const API_URL = "/api/admin-wallets";
 
 let wallets = [];
 
-let authorisedEmail = "";
+let adminUnlocked = false;
 
+
+// ENCODED PASSWORD
+
+const encodedPassword = "YWFhYWFh";
+
+
+// VERIFY PASSWORD
+
+function verifyPassword(input) {
+
+  try {
+    return btoa(input) === encodedPassword;
+  } catch (error) {
+    return false;
+  }
+
+}
+
+
+// ELEMENTS
 
 const loginSection =
   document.getElementById("loginSection");
@@ -269,39 +291,6 @@ function showLogin() {
 }
 
 
-// VERIFY ADMIN EMAIL AND LOAD WALLETS
-
-async function verifyAdmin(email) {
-
-  const response = await fetch(API_URL, {
-
-    method: "POST",
-
-    headers: {
-      "Content-Type": "application/json"
-    },
-
-    body: JSON.stringify({
-      email: email
-    })
-
-  });
-
-  const data = await response.json();
-
-  if (!response.ok || !data.authorised) {
-
-    throw new Error(
-      data.error || "Administrator verification failed."
-    );
-
-  }
-
-  return data;
-
-}
-
-
 // LOGIN FORM
 
 document.getElementById("loginForm")
@@ -321,30 +310,29 @@ document.getElementById("loginForm")
 
   try {
 
-    const email = document
-      .getElementById("email")
-      .value.trim();
+    const password =
+      document.getElementById("password").value;
 
-    // Verify email through Vercel API.
+    if (!verifyPassword(password)) {
 
-    const data = await verifyAdmin(email);
+      throw new Error("Incorrect administrator password.");
 
-    authorisedEmail = email;
+    }
+
+    adminUnlocked = true;
+
+    document.getElementById("password").value = "";
 
     showDashboard();
 
-    // Display returned wallet records.
-
-    wallets = data.wallets || [];
-
-    updateDashboard();
+    await loadWallets();
 
   } catch (error) {
 
-    authorisedEmail = "";
+    adminUnlocked = false;
 
     message.textContent =
-      error.message || "Verification failed.";
+      error.message || "Access denied.";
 
   } finally {
 
@@ -357,17 +345,11 @@ document.getElementById("loginForm")
 });
 
 
-// REFRESH WALLET RECORDS
+// LOAD WALLETS
 
 async function loadWallets() {
 
-  if (!authorisedEmail) {
-
-    logout();
-
-    return;
-
-  }
+  if (!adminUnlocked) return;
 
   const tbody =
     document.getElementById("walletTable");
@@ -377,7 +359,23 @@ async function loadWallets() {
 
   try {
 
-    const data = await verifyAdmin(authorisedEmail);
+    const response = await fetch(API_URL, {
+
+      method: "GET",
+
+      cache: "no-store"
+
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+
+      throw new Error(
+        data.error || "Unable to load wallets."
+      );
+
+    }
 
     wallets = data.wallets || [];
 
@@ -417,7 +415,7 @@ function updateDashboard() {
 }
 
 
-// RENDER WALLET TABLE
+// RENDER WALLETS
 
 function renderWallets(items) {
 
@@ -437,29 +435,19 @@ function renderWallets(items) {
 
     <tr>
 
-      <td>
-        ${escapeHtml(wallet.walletAddress || "")}
-      </td>
+      <td>${escapeHtml(wallet.walletAddress || "")}</td>
 
-      <td>
-        ${escapeHtml(wallet.network || "")}
-      </td>
+      <td>${escapeHtml(wallet.network || "")}</td>
 
-      <td>
-        ${escapeHtml(String(wallet.chainId ?? ""))}
-      </td>
+      <td>${escapeHtml(String(wallet.chainId ?? ""))}</td>
 
       <td class="status">
         ${escapeHtml(wallet.connectionStatus || "")}
       </td>
 
-      <td>
-        ${formatDate(wallet.connectedAt)}
-      </td>
+      <td>${formatDate(wallet.connectedAt)}</td>
 
-      <td>
-        ${formatDate(wallet.lastSeenAt)}
-      </td>
+      <td>${formatDate(wallet.lastSeenAt)}</td>
 
     </tr>
 
@@ -472,23 +460,21 @@ function renderWallets(items) {
 
 function filterWallets() {
 
-  const query = document
-    .getElementById("search")
-    .value.toLowerCase();
+  const query =
+    document.getElementById("search")
+      .value.toLowerCase();
 
   const filtered = wallets.filter(wallet => {
 
     return (
 
       (wallet.walletAddress || "")
-        .toLowerCase()
-        .includes(query)
+        .toLowerCase().includes(query)
 
       ||
 
       (wallet.network || "")
-        .toLowerCase()
-        .includes(query)
+        .toLowerCase().includes(query)
 
     );
 
@@ -535,11 +521,11 @@ function escapeHtml(value) {
 
 function logout() {
 
+  adminUnlocked = false;
+
   wallets = [];
 
-  authorisedEmail = "";
-
-  document.getElementById("email").value = "";
+  document.getElementById("password").value = "";
 
   document.getElementById("search").value = "";
 
@@ -557,6 +543,7 @@ function logout() {
   showLogin();
 
 }
+
 
 showLogin();
 
