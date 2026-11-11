@@ -14,22 +14,23 @@ export default async function handler(req, res) {
     });
   }
 
-  try {
-    if (
-      !ENDPOINT ||
-      !PROJECT_ID ||
-      !DATABASE_ID ||
-      !TABLE_ID ||
-      !API_KEY
-    ) {
-      return res.status(500).json({
-        success: false,
-        message: "Missing Appwrite environment variables"
-      });
-    }
+  if (
+    !ENDPOINT ||
+    !PROJECT_ID ||
+    !DATABASE_ID ||
+    !TABLE_ID ||
+    !API_KEY
+  ) {
+    return res.status(500).json({
+      success: false,
+      message: "Missing Appwrite environment variables"
+    });
+  }
 
+  try {
+    // Correct Appwrite TablesDB endpoint
     const url =
-      `${ENDPOINT}/tablesdb/databases/${DATABASE_ID}` +
+      `${ENDPOINT.replace(/\/$/, "")}/tablesdb/${DATABASE_ID}` +
       `/tables/${TABLE_ID}/rows?limit=100`;
 
     const response = await fetch(url, {
@@ -41,13 +42,25 @@ export default async function handler(req, res) {
       }
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+
+    let data;
+
+    try {
+      data = JSON.parse(responseText);
+    } catch {
+      data = {
+        message: responseText
+      };
+    }
 
     if (!response.ok) {
+      console.error("Appwrite admin error:", data);
+
       return res.status(response.status).json({
         success: false,
         message: data.message || "Unable to retrieve wallets",
-        error: data
+        details: data
       });
     }
 
@@ -58,9 +71,11 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
+    console.error("Admin wallet error:", error);
+
     return res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message || "Server error"
     });
   }
 }
