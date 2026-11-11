@@ -1,14 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>MultiChain Wallet Admin</title>
-
-<script src="https://cdn.jsdelivr.net/npm/appwrite@17.0.0"></script>
-
-<style>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"><title>MultiChain Wallet Admin</title><style>
 * {
   box-sizing: border-box;
 }
@@ -124,140 +117,124 @@ th {
   color: #9ca3af;
   font-size: 12px;
 }
-</style>
-</head>
+</style></head><body><div class="container">  <!-- ADMIN LOGIN -->  <div id="loginSection" class="card"><h1>MultiChain Wallet</h1>
 
-<body>
+<h2>Administrator Access</h2>
 
-<div class="container">
+<p class="small">
+  Enter your authorised administrator Gmail to continue.
+</p>
 
-  <div id="loginSection" class="card">
-    <h1>MultiChain Wallet</h1>
-    <h2>Administrator Login</h2>
+<form id="loginForm">
 
-    <p class="small">
-      Authorised administrator access only.
-    </p>
+  <input
+    type="email"
+    id="email"
+    placeholder="Administrator Gmail"
+    autocomplete="email"
+    required
+  >
 
-    <form id="loginForm">
-      <input
-        type="email"
-        id="email"
-        placeholder="Admin email"
-        autocomplete="username"
-        required
-      >
+  <button type="submit" id="loginButton">
+    Unlock Dashboard
+  </button>
 
-      <input
-        type="password"
-        id="password"
-        placeholder="Admin password"
-        autocomplete="current-password"
-        required
-      >
+</form>
 
-      <button type="submit" id="loginButton">
-        Sign In
-      </button>
-    </form>
+<div id="message"></div>
 
-    <div id="message"></div>
+  </div>  <!-- ADMIN DASHBOARD -->  <div id="dashboard" class="hidden"><div class="card">
+
+  <h1>Admin Dashboard</h1>
+
+  <p class="small">
+    Connected Wallet Monitoring
+  </p>
+
+  <button onclick="loadWallets()">
+    Refresh Wallets
+  </button>
+
+  <button class="logout" onclick="logout()">
+    Logout
+  </button>
+
+</div>
+
+
+<!-- STATISTICS -->
+
+<div class="stats">
+
+  <div class="card stat">
+    Total Wallets
+    <strong id="totalWallets">0</strong>
   </div>
 
+  <div class="card stat">
+    Connected
+    <strong id="connectedWallets">0</strong>
+  </div>
 
-  <div id="dashboard" class="hidden">
-
-    <div class="card">
-      <h1>Admin Dashboard</h1>
-
-      <p class="small">
-        Connected Wallet Monitoring
-      </p>
-
-      <button onclick="loadWallets()">
-        Refresh Wallets
-      </button>
-
-      <button class="logout" onclick="logout()">
-        Logout
-      </button>
-    </div>
-
-
-    <div class="stats">
-
-      <div class="card stat">
-        Total Wallets
-        <strong id="totalWallets">0</strong>
-      </div>
-
-      <div class="card stat">
-        Connected
-        <strong id="connectedWallets">0</strong>
-      </div>
-
-      <div class="card stat">
-        Networks
-        <strong id="totalNetworks">0</strong>
-      </div>
-
-    </div>
-
-
-    <div class="card">
-
-      <h2>Connected Wallets</h2>
-
-      <input
-        type="text"
-        id="search"
-        placeholder="Search wallet address or network..."
-        oninput="filterWallets()"
-      >
-
-      <div class="table-wrap">
-
-        <table>
-          <thead>
-            <tr>
-              <th>Wallet Address</th>
-              <th>Network</th>
-              <th>Chain ID</th>
-              <th>Status</th>
-              <th>Connected At</th>
-              <th>Last Seen</th>
-            </tr>
-          </thead>
-
-          <tbody id="walletTable">
-            <tr>
-              <td colspan="6">No wallet records loaded.</td>
-            </tr>
-          </tbody>
-
-        </table>
-
-      </div>
-
-    </div>
-
+  <div class="card stat">
+    Networks
+    <strong id="totalNetworks">0</strong>
   </div>
 
 </div>
 
 
-<script>
-const ENDPOINT = "https://nyc.cloud.appwrite.io/v1";
+<!-- WALLET RECORDS -->
 
-const PROJECT_ID = "69d1aaac0005506756e0";
+<div class="card">
 
-const client = new Appwrite.Client()
-  .setEndpoint(ENDPOINT)
-  .setProject(PROJECT_ID);
+  <h2>Connected Wallets</h2>
 
-const account = new Appwrite.Account(client);
+  <input
+    type="text"
+    id="search"
+    placeholder="Search wallet address or network..."
+    oninput="filterWallets()"
+  >
+
+  <div class="table-wrap">
+
+    <table>
+
+      <thead>
+        <tr>
+          <th>Wallet Address</th>
+          <th>Network</th>
+          <th>Chain ID</th>
+          <th>Status</th>
+          <th>Connected At</th>
+          <th>Last Seen</th>
+        </tr>
+      </thead>
+
+      <tbody id="walletTable">
+
+        <tr>
+          <td colspan="6">
+            No wallet records loaded.
+          </td>
+        </tr>
+
+      </tbody>
+
+    </table>
+
+  </div>
+
+</div>
+
+  </div></div><script>
+
+const API_URL = "/api/admin-wallets";
 
 let wallets = [];
+
+let authorisedEmail = "";
 
 
 const loginSection =
@@ -270,49 +247,65 @@ const message =
   document.getElementById("message");
 
 
+// SHOW DASHBOARD
+
 function showDashboard() {
+
   loginSection.classList.add("hidden");
+
   dashboard.classList.remove("hidden");
+
 }
 
+
+// SHOW LOGIN
 
 function showLogin() {
+
   dashboard.classList.add("hidden");
+
   loginSection.classList.remove("hidden");
+
 }
 
 
-async function getAdminJWT() {
-  const result = await account.createJWT();
+// VERIFY ADMIN EMAIL AND LOAD WALLETS
 
-  return result.jwt;
-}
+async function verifyAdmin(email) {
 
+  const response = await fetch(API_URL, {
 
-async function checkSession() {
-  try {
-    await account.get();
+    method: "POST",
 
-    const jwt = await getAdminJWT();
+    headers: {
+      "Content-Type": "application/json"
+    },
 
-    const response = await fetch("/api/admin-wallets", {
-      headers: {
-        Authorization: "Bearer " + jwt
-      }
-    });
+    body: JSON.stringify({
+      email: email
+    })
 
-    if (response.ok) {
-      showDashboard();
-      await loadWallets();
-    }
+  });
 
-  } catch (error) {
-    showLogin();
+  const data = await response.json();
+
+  if (!response.ok || !data.authorised) {
+
+    throw new Error(
+      data.error || "Administrator verification failed."
+    );
+
   }
+
+  return data;
+
 }
 
+
+// LOGIN FORM
 
 document.getElementById("loginForm")
+
 .addEventListener("submit", async function(e) {
 
   e.preventDefault();
@@ -323,57 +316,58 @@ document.getElementById("loginForm")
     document.getElementById("loginButton");
 
   button.disabled = true;
+
   button.textContent = "Verifying...";
 
   try {
 
-    const email =
-      document.getElementById("email").value.trim();
+    const email = document
+      .getElementById("email")
+      .value.trim();
 
-    const password =
-      document.getElementById("password").value;
+    // Verify email through Vercel API.
 
-    await account.createEmailPasswordSession(
-      email,
-      password
-    );
+    const data = await verifyAdmin(email);
 
-    const jwt = await getAdminJWT();
-
-    const response = await fetch("/api/admin-wallets", {
-      headers: {
-        Authorization: "Bearer " + jwt
-      }
-    });
-
-    if (!response.ok) {
-      await account.deleteSession("current");
-
-      throw new Error(
-        "This account is not authorised as administrator."
-      );
-    }
+    authorisedEmail = email;
 
     showDashboard();
 
-    await loadWallets();
+    // Display returned wallet records.
+
+    wallets = data.wallets || [];
+
+    updateDashboard();
 
   } catch (error) {
 
+    authorisedEmail = "";
+
     message.textContent =
-      error.message || "Login failed.";
+      error.message || "Verification failed.";
 
   } finally {
 
     button.disabled = false;
-    button.textContent = "Sign In";
+
+    button.textContent = "Unlock Dashboard";
 
   }
 
 });
 
 
+// REFRESH WALLET RECORDS
+
 async function loadWallets() {
+
+  if (!authorisedEmail) {
+
+    logout();
+
+    return;
+
+  }
 
   const tbody =
     document.getElementById("walletTable");
@@ -383,45 +377,11 @@ async function loadWallets() {
 
   try {
 
-    const jwt = await getAdminJWT();
-
-    const response = await fetch("/api/admin-wallets", {
-      headers: {
-        Authorization: "Bearer " + jwt
-      }
-    });
-
-    if (response.status === 401 ||
-        response.status === 403) {
-
-      await logout();
-      throw new Error("Admin access expired.");
-    }
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || "Unable to load wallets");
-    }
+    const data = await verifyAdmin(authorisedEmail);
 
     wallets = data.wallets || [];
 
-    renderWallets(wallets);
-
-    document.getElementById("totalWallets")
-      .textContent = wallets.length;
-
-    document.getElementById("connectedWallets")
-      .textContent = wallets.filter(
-        w => w.connectionStatus === "connected"
-      ).length;
-
-    const networks = new Set(
-      wallets.map(w => w.network)
-    );
-
-    document.getElementById("totalNetworks")
-      .textContent = networks.size;
+    updateDashboard();
 
   } catch (error) {
 
@@ -429,8 +389,35 @@ async function loadWallets() {
       `<tr><td colspan="6">${escapeHtml(error.message)}</td></tr>`;
 
   }
+
 }
 
+
+// UPDATE DASHBOARD
+
+function updateDashboard() {
+
+  renderWallets(wallets);
+
+  document.getElementById("totalWallets")
+    .textContent = wallets.length;
+
+  document.getElementById("connectedWallets")
+    .textContent = wallets.filter(
+      w => w.connectionStatus === "connected"
+    ).length;
+
+  const networks = new Set(
+    wallets.map(w => w.network).filter(Boolean)
+  );
+
+  document.getElementById("totalNetworks")
+    .textContent = networks.size;
+
+}
+
+
+// RENDER WALLET TABLE
 
 function renderWallets(items) {
 
@@ -438,20 +425,29 @@ function renderWallets(items) {
     document.getElementById("walletTable");
 
   if (!items.length) {
+
     tbody.innerHTML =
       "<tr><td colspan='6'>No connected wallets found.</td></tr>";
+
     return;
+
   }
 
   tbody.innerHTML = items.map(wallet => `
 
     <tr>
 
-      <td>${escapeHtml(wallet.walletAddress || "")}</td>
+      <td>
+        ${escapeHtml(wallet.walletAddress || "")}
+      </td>
 
-      <td>${escapeHtml(wallet.network || "")}</td>
+      <td>
+        ${escapeHtml(wallet.network || "")}
+      </td>
 
-      <td>${escapeHtml(String(wallet.chainId ?? ""))}</td>
+      <td>
+        ${escapeHtml(String(wallet.chainId ?? ""))}
+      </td>
 
       <td class="status">
         ${escapeHtml(wallet.connectionStatus || "")}
@@ -472,20 +468,28 @@ function renderWallets(items) {
 }
 
 
+// SEARCH WALLETS
+
 function filterWallets() {
 
-  const query =
-    document.getElementById("search")
-      .value.toLowerCase();
+  const query = document
+    .getElementById("search")
+    .value.toLowerCase();
 
   const filtered = wallets.filter(wallet => {
 
     return (
+
       (wallet.walletAddress || "")
-        .toLowerCase().includes(query) ||
+        .toLowerCase()
+        .includes(query)
+
+      ||
 
       (wallet.network || "")
-        .toLowerCase().includes(query)
+        .toLowerCase()
+        .includes(query)
+
     );
 
   });
@@ -494,6 +498,8 @@ function filterWallets() {
 
 }
 
+
+// FORMAT DATE
 
 function formatDate(value) {
 
@@ -508,35 +514,51 @@ function formatDate(value) {
 }
 
 
+// ESCAPE HTML
+
 function escapeHtml(value) {
 
   return String(value).replace(/[&<>"']/g, char => ({
+
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
     '"': "&quot;",
     "'": "&#39;"
+
   })[char]);
 
 }
 
 
-async function logout() {
+// LOGOUT
 
-  try {
-    await account.deleteSession("current");
-  } catch (error) {}
+function logout() {
 
   wallets = [];
+
+  authorisedEmail = "";
+
+  document.getElementById("email").value = "";
+
+  document.getElementById("search").value = "";
+
+  document.getElementById("totalWallets").textContent = "0";
+
+  document.getElementById("connectedWallets").textContent = "0";
+
+  document.getElementById("totalNetworks").textContent = "0";
+
+  document.getElementById("walletTable").innerHTML =
+    "<tr><td colspan='6'>No wallet records loaded.</td></tr>";
+
+  message.textContent = "";
 
   showLogin();
 
 }
 
+showLogin();
 
-checkSession();
-
-</script>
-
-</body>
+</script></body>
 </html>
