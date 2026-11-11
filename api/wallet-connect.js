@@ -16,8 +16,13 @@ export default async function handler(req, res) {
     });
   }
 
-  if (!ENDPOINT || !PROJECT_ID || !DATABASE_ID ||
-      !TABLE_ID || !API_KEY) {
+  if (
+    !ENDPOINT ||
+    !PROJECT_ID ||
+    !DATABASE_ID ||
+    !TABLE_ID ||
+    !API_KEY
+  ) {
     return res.status(500).json({
       success: false,
       error: "Appwrite configuration missing"
@@ -61,14 +66,13 @@ export default async function handler(req, res) {
     }
 
     const now = new Date().toISOString();
+    const wallet = walletAddress.trim();
 
     const base =
       `${ENDPOINT.replace(/\/$/, "")}/tablesdb/databases/${DATABASE_ID}` +
       `/tables/${TABLE_ID}/rows`;
 
-    const wallet = walletAddress.trim();
-
-    // Search for an existing wallet
+    // Find existing wallet
     const searchUrl = new URL(base);
 
     const queries = [
@@ -106,8 +110,6 @@ export default async function handler(req, res) {
     }
 
     if (!searchResponse.ok) {
-      console.error("Appwrite search error:", searchData);
-
       return res.status(502).json({
         success: false,
         stage: "search",
@@ -168,8 +170,6 @@ export default async function handler(req, res) {
     }
 
     if (!saveResponse.ok) {
-      console.error("Appwrite save error:", saveData);
-
       return res.status(502).json({
         success: false,
         stage: existing ? "update" : "create",
