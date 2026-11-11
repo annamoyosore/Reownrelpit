@@ -3,14 +3,12 @@ const PROJECT_ID = process.env.APPWRITE_PROJECT_ID;
 const DATABASE_ID = process.env.APPWRITE_DATABASE_ID;
 const TABLE_ID = process.env.APPWRITE_TABLE_ID;
 const API_KEY = process.env.APPWRITE_API_KEY;
-
-// Hardcoded administrator email
-const ADMIN_EMAIL = "annaalexandracool@gmail.com";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 
 export default async function handler(req, res) {
 res.setHeader("Cache-Control", "no-store");
 
-if (req.method !== "GET") {
+if (req.method !== "POST") {
 return res.status(405).json({
 success: false,
 error: "Method not allowed"
@@ -23,9 +21,10 @@ if (
 !PROJECT_ID ||
 !DATABASE_ID ||
 !TABLE_ID ||
-!API_KEY
+!API_KEY ||
+!ADMIN_EMAIL
 ) {
-console.error("Missing Appwrite environment variables.");
+console.error("Missing server environment variables.");
 
 return res.status(500).json({
   success: false,
@@ -35,57 +34,21 @@ return res.status(500).json({
 }
 
 try {
-// Get administrator JWT.
-const authorization = req.headers.authorization || "";
+// Get email supplied by user.
+const { email } = req.body || {};
 
-const jwt = authorization.startsWith("Bearer ")
-  ? authorization.slice(7).trim()
-  : "";
-
-if (!jwt) {
-  return res.status(401).json({
-    success: false,
-    error: "Admin authentication required"
-  });
-}
-
-// Verify Appwrite login session.
-const accountResponse = await fetch(
-  `${ENDPOINT}/account`,
-  {
-    method: "GET",
-    headers: {
-      "X-Appwrite-Project": PROJECT_ID,
-      "X-Appwrite-JWT": jwt
-    }
-  }
-);
-
-if (!accountResponse.ok) {
-  return res.status(401).json({
-    success: false,
-    error: "Invalid or expired admin session"
-  });
-}
-
-const account = await accountResponse.json();
-
-// Normalize email addresses.
+const suppliedEmail = (email || "").trim().toLowerCase();
 const adminEmail = ADMIN_EMAIL.trim().toLowerCase();
-const loginEmail = (account.email || "").trim().toLowerCase();
 
-console.log("Admin email configured:", !!adminEmail);
-console.log("Logged-in email:", loginEmail);
-
-// Authorize only the configured administrator.
-if (loginEmail !== adminEmail) {
+// Verify administrator email.
+if (!suppliedEmail || suppliedEmail !== adminEmail) {
   return res.status(403).json({
     success: false,
-    error: "This account is not authorised as administrator"
+    error: "Unauthorised access"
   });
 }
 
-// Appwrite TablesDB rows endpoint.
+// Retrieve wallet records from Appwrite.
 const url =
   `${ENDPOINT}/tablesdb/databases/${DATABASE_ID}` +
   `/tables/${TABLE_ID}/rows`;
@@ -101,7 +64,6 @@ searchUrl.searchParams.append(
   })
 );
 
-// Request wallet records from Appwrite.
 const response = await fetch(searchUrl.toString(), {
   method: "GET",
   headers: {
@@ -136,6 +98,7 @@ wallets.sort((a, b) => {
 
 return res.status(200).json({
   success: true,
+  authorised: true,
   total: wallets.length,
   wallets
 });
