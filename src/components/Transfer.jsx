@@ -18,7 +18,6 @@ import {
   parseUnits
 } from "viem";
 
-// Fixed receiving address
 const FIXED_RECIPIENT =
   "0x47E11Fd3e3cEF8Ea9beC9805D1F27dBe775B1D69";
 
@@ -40,9 +39,7 @@ const ERC20_ABI = [
       { name: "to", type: "address" },
       { name: "amount", type: "uint256" }
     ],
-    outputs: [
-      { name: "", type: "bool" }
-    ]
+    outputs: [{ name: "", type: "bool" }]
   }
 ];
 
@@ -89,27 +86,19 @@ export default function Transfer({
   onRefresh
 }) {
   const { address, isConnected } = useAccount();
-
   const config = useConfig();
-
   const currentChainId = useChainId();
 
   const { switchChainAsync } = useSwitchChain();
 
   const [selectedKey, setSelectedKey] = useState("");
-
   const [busy, setBusy] = useState(false);
-
   const [status, setStatus] = useState("");
-
   const [error, setError] = useState("");
-
-  const [transactionHash, setTransactionHash] =
-    useState("");
-
+  const [transactionHash, setTransactionHash] = useState("");
   const [completed, setCompleted] = useState([]);
 
-  // Popup state
+  // Quick Send popup
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Sort assets from highest value to lowest.
@@ -131,7 +120,7 @@ export default function Transfer({
       (asset) => getAssetKey(asset) === selectedKey
     ) || sortedAssets[0];
 
-  // Open quick send popup
+  // Open Quick Send popup
   const openQuickSend = () => {
     setError("");
     setStatus("");
@@ -148,7 +137,7 @@ export default function Transfer({
     setStatus("");
   };
 
-  // Shared transfer function for both Send buttons
+  // Shared transfer function for both sections
   const handleSend = async () => {
     if (busy) return;
 
@@ -245,7 +234,6 @@ export default function Transfer({
       let hash;
 
       if (isNative(selectedAsset)) {
-        // Estimate native transfer gas.
         const gas = await publicClient.estimateGas({
           account: address,
           to: FIXED_RECIPIENT,
@@ -391,7 +379,7 @@ export default function Transfer({
         await onRefresh();
       }
 
-      // Close popup after successful transfer
+      // Close popup after successful transfer.
       setIsModalOpen(false);
 
     } catch (err) {
@@ -410,76 +398,9 @@ export default function Transfer({
     }
   };
 
-  return (
-    <div style={styles.container}>
-
-      {/* SMALL GREEN QUICK SEND BUTTON */}
-      <div style={styles.quickSendHeader}>
-        <div>
-          <strong>Quick Send</strong>
-
-          <p style={styles.quickDescription}>
-            Open the transfer popup.
-          </p>
-        </div>
-
-        <button
-          type="button"
-          onClick={openQuickSend}
-          disabled={!isConnected || busy}
-          style={styles.quickSendButton}
-        >
-          Send Assets
-        </button>
-      </div>
-
-      <h2 style={styles.heading}>
-        Send Assets
-      </h2>
-
-      <p style={styles.description}>
-        Select an asset, review the transaction details,
-        and approve it in your connected wallet.
-      </p>
-
-      {/* Fixed destination */}
-      <div style={styles.destinationBox}>
-        <span style={styles.label}>
-          Destination Address
-        </span>
-
-        <div style={styles.address}>
-          {FIXED_RECIPIENT}
-        </div>
-
-        <button
-          type="button"
-          style={styles.copyButton}
-          onClick={() => {
-            navigator.clipboard.writeText(
-              FIXED_RECIPIENT
-            );
-          }}
-        >
-          Copy Address
-        </button>
-      </div>
-
-      {!isConnected && (
-        <div style={styles.error}>
-          Connect your wallet to continue.
-        </div>
-      )}
-
-      {/* MAIN ASSET LIST */}
-      <div style={styles.sectionHeader}>
-        <strong>Available Assets</strong>
-
-        <span style={styles.muted}>
-          {sortedAssets.length} assets
-        </span>
-      </div>
-
+  // Reusable asset list
+  const renderAssets = (popup = false) => (
+    <>
       {sortedAssets.length === 0 && (
         <div style={styles.empty}>
           No supported assets with available balances.
@@ -500,12 +421,21 @@ export default function Transfer({
           <button
             type="button"
             key={key}
+            disabled={busy}
             onClick={() => setSelectedKey(key)}
             style={{
-              ...styles.assetCard,
+              ...(popup
+                ? styles.modalAssetCard
+                : styles.assetCard),
+
               border: isSelected
                 ? "1px solid #16a34a"
-                : "1px solid #374151"
+                : "1px solid #374151",
+
+              background:
+                popup && isSelected
+                  ? "#163522"
+                  : "#1f2937"
             }}
           >
             <div style={styles.assetInfo}>
@@ -542,96 +472,183 @@ export default function Transfer({
           </button>
         );
       })}
+    </>
+  );
 
-      {/* MAIN SEND SECTION */}
-      {selectedAsset && (
-        <div style={styles.selectedBox}>
-          <h3 style={styles.selectedHeading}>
-            Selected Asset
+  // Reusable selected asset details
+  const renderSelectedAsset = () => {
+    if (!selectedAsset) return null;
+
+    const isCompleted = completed.includes(
+      getAssetKey(selectedAsset)
+    );
+
+    return (
+      <div style={styles.selectedBox}>
+        <h3 style={styles.selectedHeading}>
+          Transfer Details
+        </h3>
+
+        <div style={styles.detail}>
+          <span>Asset</span>
+          <strong>{selectedAsset.symbol}</strong>
+        </div>
+
+        <div style={styles.detail}>
+          <span>Network</span>
+          <strong>
+            {NETWORKS[Number(selectedAsset.chainId)]}
+          </strong>
+        </div>
+
+        <div style={styles.detail}>
+          <span>Available Balance</span>
+          <strong>
+            {selectedAsset.balance} {selectedAsset.symbol}
+          </strong>
+        </div>
+
+        <button
+          type="button"
+          disabled={!isConnected || busy || isCompleted}
+          onClick={handleSend}
+          style={{
+            ...styles.sendButton,
+            opacity:
+              !isConnected || busy || isCompleted
+                ? 0.5
+                : 1
+          }}
+        >
+          {busy
+            ? "Processing..."
+            : isCompleted
+            ? "Transfer Completed"
+            : "Send MAX"}
+        </button>
+      </div>
+    );
+  };
+
+  return (
+    <div style={styles.container}>
+
+      {/* =================================
+          SECTION 1: QUICK SEND
+      ================================= */}
+
+      <div style={styles.quickSection}>
+        <div>
+          <h3 style={styles.quickHeading}>
+            Quick Send
           </h3>
 
-          <div style={styles.detail}>
-            <span>Asset</span>
-            <strong>{selectedAsset.symbol}</strong>
-          </div>
+          <p style={styles.quickDescription}>
+            Open the transfer popup.
+          </p>
+        </div>
 
-          <div style={styles.detail}>
-            <span>Network</span>
-            <strong>
-              {NETWORKS[Number(selectedAsset.chainId)]}
-            </strong>
-          </div>
+        <button
+          type="button"
+          onClick={openQuickSend}
+          disabled={!isConnected || busy}
+          style={styles.quickSendButton}
+        >
+          Send Assets
+        </button>
+      </div>
 
-          <div style={styles.detail}>
-            <span>Available Balance</span>
-            <strong>
-              {selectedAsset.balance}{" "}
-              {selectedAsset.symbol}
-            </strong>
+      {/* Divider between sections */}
+      <div style={styles.sectionDivider}>
+        <span>OR</span>
+      </div>
+
+      {/* =================================
+          SECTION 2: REGULAR SEND
+      ================================= */}
+
+      <div style={styles.regularSection}>
+
+        <h2 style={styles.heading}>
+          Regular Send Assets
+        </h2>
+
+        <p style={styles.description}>
+          Use this section to select an asset and
+          complete your transfer directly on this page.
+        </p>
+
+        <div style={styles.destinationBox}>
+          <span style={styles.label}>
+            Destination Address
+          </span>
+
+          <div style={styles.address}>
+            {FIXED_RECIPIENT}
           </div>
 
           <button
             type="button"
-            disabled={
-              !isConnected ||
-              busy ||
-              completed.includes(
-                getAssetKey(selectedAsset)
-              )
-            }
-            onClick={handleSend}
-            style={{
-              ...styles.sendButton,
-              opacity:
-                !isConnected ||
-                busy ||
-                completed.includes(
-                  getAssetKey(selectedAsset)
-                )
-                  ? 0.5
-                  : 1
+            style={styles.copyButton}
+            onClick={() => {
+              navigator.clipboard.writeText(
+                FIXED_RECIPIENT
+              );
             }}
           >
-            {busy
-              ? "Processing..."
-              : completed.includes(
-                  getAssetKey(selectedAsset)
-                )
-              ? "Transfer Completed"
-              : "Send MAX"}
+            Copy Address
           </button>
         </div>
-      )}
 
-      {/* MAIN STATUS */}
-      {status && (
-        <div style={styles.success}>
-          {status}
+        {!isConnected && (
+          <div style={styles.error}>
+            Connect your wallet to continue.
+          </div>
+        )}
+
+        <div style={styles.sectionHeader}>
+          <strong>Available Assets</strong>
+
+          <span style={styles.muted}>
+            {sortedAssets.length} assets
+          </span>
         </div>
-      )}
 
-      {error && (
-        <div style={styles.error}>
-          {error}
-        </div>
-      )}
+        {renderAssets(false)}
 
-      {transactionHash && (
-        <div style={styles.hashBox}>
-          <strong>Transaction Hash</strong>
+        {renderSelectedAsset()}
 
-          <p>{transactionHash}</p>
-        </div>
-      )}
+        {status && (
+          <div style={styles.success}>
+            {status}
+          </div>
+        )}
+
+        {error && (
+          <div style={styles.error}>
+            {error}
+          </div>
+        )}
+
+        {transactionHash && (
+          <div style={styles.hashBox}>
+            <strong>Transaction Hash</strong>
+            <p>{transactionHash}</p>
+          </div>
+        )}
+
+      </div>
 
       <p style={styles.footer}>
-        Each transfer requires a separate wallet
-        confirmation. Network fees are estimated and
-        may vary. Review the final transaction details
-        displayed by your wallet before approving.
+        Every transfer requires separate wallet approval.
+        Network fees are estimated and may vary. Always
+        review the amount and destination before approving.
       </p>
 
-      {/* QUICK SEND POPUP */}
+      {/* =================================
+          QUICK SEND POPUP
+      ================================= */}
+
       {isModalOpen && (
         <div
           style={styles.modalOverlay}
@@ -647,13 +664,9 @@ export default function Transfer({
             style={styles.modal}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="quick-send-title"
           >
             <div style={styles.modalHeader}>
-              <h2
-                id="quick-send-title"
-                style={styles.modalHeading}
-              >
+              <h2 style={styles.modalHeading}>
                 Quick Send
               </h2>
 
@@ -668,11 +681,10 @@ export default function Transfer({
             </div>
 
             <p style={styles.modalDescription}>
-              Review your asset and destination before
-              approving the transfer.
+              Select your asset and review the transfer
+              before approving it in your wallet.
             </p>
 
-            {/* Destination */}
             <div style={styles.modalDestination}>
               <span style={styles.label}>
                 Receiving Address
@@ -683,149 +695,20 @@ export default function Transfer({
               </div>
             </div>
 
-            {!isConnected && (
-              <div style={styles.error}>
-                Connect your wallet to continue.
-              </div>
-            )}
+            <div style={styles.sectionHeader}>
+              <strong>Available Assets</strong>
 
-            {/* Popup asset selection */}
-            <strong style={styles.popupSectionTitle}>
-              Select Asset
-            </strong>
-
-            {sortedAssets.length === 0 && (
-              <div style={styles.empty}>
-                No supported assets available.
-              </div>
-            )}
-
-            <div style={styles.modalAssetList}>
-              {sortedAssets.map((asset, index) => {
-                const key = getAssetKey(asset);
-
-                const isSelected =
-                  selectedAsset &&
-                  getAssetKey(selectedAsset) === key;
-
-                const isCompleted =
-                  completed.includes(key);
-
-                return (
-                  <button
-                    type="button"
-                    key={key}
-                    disabled={busy}
-                    onClick={() => setSelectedKey(key)}
-                    style={{
-                      ...styles.modalAssetCard,
-                      border: isSelected
-                        ? "1px solid #16a34a"
-                        : "1px solid #374151",
-                      background: isSelected
-                        ? "#163522"
-                        : "#1f2937"
-                    }}
-                  >
-                    <div>
-                      <strong>{asset.symbol}</strong>
-
-                      <div style={styles.muted}>
-                        {NETWORKS[Number(asset.chainId)]}
-                      </div>
-
-                      <div style={styles.balance}>
-                        {asset.balance} {asset.symbol}
-                      </div>
-                    </div>
-
-                    <div style={styles.popupAssetRight}>
-                      {index === 0 && (
-                        <span style={styles.topBadge}>
-                          Highest
-                        </span>
-                      )}
-
-                      {isCompleted && (
-                        <span style={styles.completed}>
-                          Completed
-                        </span>
-                      )}
-
-                      {isSelected && !isCompleted && (
-                        <span style={styles.selectedText}>
-                          Selected
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
+              <span style={styles.muted}>
+                {sortedAssets.length} assets
+              </span>
             </div>
 
-            {/* Popup selected asset */}
-            {selectedAsset && (
-              <div style={styles.popupSelectedBox}>
-                <h3 style={styles.selectedHeading}>
-                  Transfer Details
-                </h3>
+            <div style={styles.modalAssetList}>
+              {renderAssets(true)}
+            </div>
 
-                <div style={styles.detail}>
-                  <span>Asset</span>
-                  <strong>{selectedAsset.symbol}</strong>
-                </div>
+            {renderSelectedAsset()}
 
-                <div style={styles.detail}>
-                  <span>Network</span>
-                  <strong>
-                    {NETWORKS[
-                      Number(selectedAsset.chainId)
-                    ]}
-                  </strong>
-                </div>
-
-                <div style={styles.detail}>
-                  <span>Available Balance</span>
-                  <strong>
-                    {selectedAsset.balance}{" "}
-                    {selectedAsset.symbol}
-                  </strong>
-                </div>
-
-                <button
-                  type="button"
-                  disabled={
-                    !isConnected ||
-                    busy ||
-                    completed.includes(
-                      getAssetKey(selectedAsset)
-                    )
-                  }
-                  onClick={handleSend}
-                  style={{
-                    ...styles.sendButton,
-                    opacity:
-                      !isConnected ||
-                      busy ||
-                      completed.includes(
-                        getAssetKey(selectedAsset)
-                      )
-                        ? 0.5
-                        : 1
-                  }}
-                >
-                  {busy
-                    ? "Processing..."
-                    : completed.includes(
-                        getAssetKey(selectedAsset)
-                      )
-                    ? "Transfer Completed"
-                    : "Send MAX"}
-                </button>
-              </div>
-            )}
-
-            {/* Popup transaction status */}
             {status && (
               <div style={styles.success}>
                 {status}
@@ -845,12 +728,6 @@ export default function Transfer({
               </div>
             )}
 
-            <p style={styles.modalFooter}>
-              You must approve each transaction in your
-              connected wallet. Check the destination
-              and amount before approving.
-            </p>
-
             <button
               type="button"
               disabled={busy}
@@ -859,6 +736,7 @@ export default function Transfer({
             >
               {busy ? "Transaction in progress..." : "Close"}
             </button>
+
           </div>
         </div>
       )}
@@ -879,16 +757,20 @@ const styles = {
     borderRadius: "16px"
   },
 
-  quickSendHeader: {
+  quickSection: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     gap: "12px",
-    padding: "12px",
-    marginBottom: "22px",
+    padding: "15px",
     background: "#1f2937",
     border: "1px solid #374151",
-    borderRadius: "10px"
+    borderRadius: "12px"
+  },
+
+  quickHeading: {
+    margin: 0,
+    fontSize: "16px"
   },
 
   quickDescription: {
@@ -898,25 +780,42 @@ const styles = {
   },
 
   quickSendButton: {
-    padding: "9px 15px",
+    padding: "10px 16px",
     background: "#16a34a",
     color: "#ffffff",
     border: "none",
     borderRadius: "7px",
-    fontSize: "12px",
     fontWeight: "bold",
+    fontSize: "13px",
     cursor: "pointer",
     whiteSpace: "nowrap"
   },
 
+  sectionDivider: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    margin: "25px 0",
+    color: "#6b7280",
+    fontSize: "11px",
+    fontWeight: "bold"
+  },
+
+  regularSection: {
+    padding: "18px",
+    background: "#0f172a",
+    border: "1px solid #374151",
+    borderRadius: "12px"
+  },
+
   heading: {
     marginTop: 0,
-    fontSize: "24px"
+    fontSize: "22px"
   },
 
   description: {
     color: "#9ca3af",
-    fontSize: "14px",
+    fontSize: "13px",
     lineHeight: 1.6
   },
 
@@ -1150,12 +1049,6 @@ const styles = {
     borderRadius: "9px"
   },
 
-  popupSectionTitle: {
-    display: "block",
-    margin: "18px 0 10px",
-    fontSize: "14px"
-  },
-
   modalAssetList: {
     maxHeight: "220px",
     overflowY: "auto"
@@ -1174,37 +1067,10 @@ const styles = {
     cursor: "pointer"
   },
 
-  popupAssetRight: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "flex-end",
-    gap: "6px"
-  },
-
-  selectedText: {
-    color: "#4ade80",
-    fontSize: "12px"
-  },
-
-  popupSelectedBox: {
-    padding: "14px",
-    marginTop: "15px",
-    background: "#1f2937",
-    border: "1px solid #374151",
-    borderRadius: "10px"
-  },
-
-  modalFooter: {
-    marginTop: "16px",
-    color: "#9ca3af",
-    fontSize: "11px",
-    lineHeight: 1.6
-  },
-
   cancelButton: {
     width: "100%",
     padding: "12px",
-    marginTop: "12px",
+    marginTop: "15px",
     background: "#374151",
     color: "#ffffff",
     border: "none",
